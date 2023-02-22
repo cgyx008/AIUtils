@@ -59,7 +59,10 @@ def extract_frames(video_path, steps=10, ext='jpg'):
 
 
 def main():
-    extract_frames(r'W:\ganhao\Fisheye\Youtube\FE8172V.mp4')
+    r = Path(r'G:\Data\PD\working_datasets\web_video')
+    vs = list(r.glob('*.mp4'))
+    for p in vs:
+        extract_frames(str(p))
 
 
 if __name__ == '__main__':
