@@ -129,11 +129,13 @@ def txt2json(txt_dir, img_dir, json_path, classes=('Pet', 'Person', 'Vehicle')):
         ))
     imgs, anns = zip(*data)
     imgs = [f for f in imgs if f]
+    img_ids_map = {img['id']: i for i, img in enumerate(imgs)}
     for i, img in enumerate(imgs):
         img['id'] = i
     anns = [a for al in anns for a in al if a]
     anns.sort(key=lambda a: (a['image_id'], a['id']))
     for i, a in enumerate(anns):
+        a['image_id'] = img_ids_map[a['image_id']]
         a['id'] = i
     json_data['images'], json_data['annotations'] = imgs, anns
     with open(json_path, 'w', encoding='utf-8') as f:
