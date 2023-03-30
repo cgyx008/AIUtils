@@ -78,7 +78,7 @@ def get_images_and_annotations(img_id_and_txt, name2img):
     if not anns.size:
         return image, [{}]
     class_ids, boxes = anns[:, 0], anns[:, 1:5]
-    class_ids = class_ids.astype(np.int).tolist()
+    class_ids = class_ids.astype(int).tolist()
     boxes[:, [0, 2]] *= w
     boxes[:, [1, 3]] *= h
     boxes[:, 0] -= boxes[:, 2] / 2
