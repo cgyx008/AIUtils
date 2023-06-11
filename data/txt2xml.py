@@ -122,6 +122,47 @@ def txt2xml(root):
             f.write(end_fmt)
 
 
+def xml2txt(xml_path, txt_path=None, classes=('animal', 'person', 'vehicle')):
+    # Initialize `txt_path` if not specified
+    if txt_path is None:
+        txt_path = Path(xml_path).with_suffix('.txt')
+    # Initialize classes
+    classes = {c: i for i, c in enumerate(classes)}
+
+    # Get root
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+
+    # Get image width and height
+    width = int(root.find('size').find('width').text)
+    height = int(root.find('size').find('height').text)
+
+    # Get object
+    objs = root.findall('object')
+    txt_lines = []
+    for obj in objs:
+        # Get class_id
+        name = obj.find('name').text.lower()
+        class_id = classes.get(name, -1)
+        if class_id == -1:
+            print(f'Error class name "{name}" in {xml_path}, skip it.')
+            continue
+        # Get box
+        xmin = int(obj.find('bndbox').find('xmin').text)
+        ymin = int(obj.find('bndbox').find('ymin').text)
+        xmax = int(obj.find('bndbox').find('xmax').text)
+        ymax = int(obj.find('bndbox').find('ymax').text)
+        w, h = xmax - xmin, ymax - ymin
+        xc, yc = xmin + w/2, ymin + h/2
+        # Normalize
+        xc, yc, w, h = xc / width, yc / height, w / width, h / height
+        txt_lines.append(f'{class_id} {xc} {yc} {w} {h}\n')
+
+    # Write in txt
+    with open(txt_path, 'w', encoding='utf-8') as f:
+        f.writelines(txt_lines)
+
+
 def main():
     txt2xml(r'W:\ganhao\AD\wd\v04')
 
