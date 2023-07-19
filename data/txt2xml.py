@@ -1,5 +1,7 @@
 import os
 from pathlib import Path
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
 
 import cv2
 import numpy as np
@@ -161,6 +163,55 @@ def xml2txt(xml_path, txt_path=None, classes=('animal', 'person', 'vehicle')):
     # Write in txt
     with open(txt_path, 'w', encoding='utf-8') as f:
         f.writelines(txt_lines)
+
+
+def write_xml(img_path, xml_path):
+    img_path, xml_path = Path(img_path), Path(xml_path)
+    # Get width and height
+    img = cv2.imread(str(img_path))
+    if img is None:
+        with Image.open(img_path) as img:
+            img = np.ascontiguousarray(np.array(img)[..., ::-1])
+    h, w = img.shape[:2]
+
+    # Create new xml
+    root = ET.Element('annotation')
+    # folder
+    folder = ET.SubElement(root, 'folder')
+    folder.text = img_path.parts[-2]
+    # filename
+    filename = ET.SubElement(root, 'filename')
+    filename.text = img_path.name
+    # path
+    path = ET.SubElement(root, 'path')
+    path.text = str(img_path)
+    # source
+    source = ET.SubElement(root, 'source')
+    database = ET.SubElement(source, 'database')
+    database.text = 'Unknown'
+    # size
+    size = ET.SubElement(root, 'size')
+    width = ET.SubElement(size, 'width')
+    width.text = str(w)
+    height = ET.SubElement(size, 'height')
+    height.text = str(h)
+    depth = ET.SubElement(size, 'depth')
+    depth.text = '3'
+    # segmented
+    segmented = ET.SubElement(root, 'segmented')
+    segmented.text = '0'
+    # object
+
+    # Convert ElementTree to string
+    xml_string = ET.tostring(root, encoding='utf-8')
+
+    # Parse the XML string using minidom
+    dom = minidom.parseString(xml_string)
+    pretty_xml_string = dom.toprettyxml()
+
+    # Write the prettified XML string to a file
+    with open(xml_path, 'w', encoding='utf-8') as f:
+        f.write(pretty_xml_string)
 
 
 def main():
