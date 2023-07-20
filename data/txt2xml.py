@@ -204,6 +204,7 @@ def write_xml(img_path, xml_path):
 
     # Convert ElementTree to string
     xml_string = ET.tostring(root, encoding='utf-8')
+    xml_string = ''.join(xml_string.decode('utf-8').split())
 
     # Parse the XML string using minidom
     dom = minidom.parseString(xml_string)
