@@ -143,6 +143,9 @@ def xml2txt(xml_path, txt_path=None, classes=('animal', 'person', 'vehicle')):
     objs = root.findall('object')
     txt_lines = []
     for obj in objs:
+        if obj.find('difficult').text == '1':
+            txt_lines.clear()
+            break
         # Get class_id
         name = obj.find('name').text.lower()
         class_id = classes.get(name, -1)
