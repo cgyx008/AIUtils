@@ -72,12 +72,12 @@ end_fmt = '''</annotation>
 def txt2xml(root):
     """Transform txts in the root into xmls"""
     # Glob txts
-    txt_paths = sorted(list(Path(root).glob('**/*.txt')))
+    txt_paths = sorted(Path(root).glob('**/*.txt'))
     s = os.sep  # '/' in Linux, '\\' in Windows
     for txt_path in tqdm(txt_paths):
         # Get xml path
         xml_path = txt_path.with_suffix('.xml')
-        xml_path = str(xml_path).replace(f'{s}labels{s}', f'{s}labels_voc{s}')
+        xml_path = str(xml_path).replace(f'{s}labels{s}', f'{s}labels_xml{s}')
         xml_path = Path(xml_path)
         if xml_path.exists():
             continue
