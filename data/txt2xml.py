@@ -236,6 +236,53 @@ def write_xml(img_path, xml_path):
         f.write(pretty_xml_string)
 
 
+def remove_small_objs():
+    cwd = Path(r'T:\Working\v03\train')
+    xml_paths = sorted(cwd.glob('labels_xml/*.xml'))
+    num_objs, num_small_objs = 0, 0
+    has_small_obj_xml = set()
+    for xml_path in tqdm(xml_paths):
+        # Get root
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+
+        # Size
+        w = int(root.find('size').find('width').text)
+        h = int(root.find('size').find('height').text)
+        img_area = w * h
+
+        # Get object
+        objs = root.findall('object')
+        num_objs += len(objs)
+        for obj in objs:
+            # Get class_id
+            xmin = int(obj.find('bndbox').find('xmin').text)
+            ymin = int(obj.find('bndbox').find('ymin').text)
+            xmax = int(obj.find('bndbox').find('xmax').text)
+            ymax = int(obj.find('bndbox').find('ymax').text)
+            w, h = xmax - xmin, ymax - ymin
+            area = w * h
+            if area / img_area < 10**2 / 512**2:
+                num_small_objs += 1
+                has_small_obj_xml.add(xml_path)
+                root.remove(obj)
+
+        # Convert ElementTree to string
+        xml_string = ET.tostring(root, encoding='utf-8')
+        xml_string = ''.join(xml_string.decode('utf-8').split())
+        xml_string = xml_string.replace('<annotationverified="yes">',
+                                        '<annotation verified="yes">')
+
+        # Parse the XML string using minidom
+        dom = minidom.parseString(xml_string)
+        pretty_xml_string = dom.toprettyxml()
+
+        # Write the prettified XML string to a file
+        with open(xml_path, 'w', encoding='utf-8') as f:
+            f.write(pretty_xml_string)
+    print(num_objs, num_small_objs)
+
+
 def main():
     txt2xml(r'W:\ganhao\AD\wd\v04')
 
