@@ -58,6 +58,25 @@ def extract_frames(video_path, steps=10, ext='jpg'):
         cv2.imwrite(str(save_path), frame)
 
 
+def rewrite_video():
+    video_path = Path(r'G:\Data\AD\reolink\videos\EnWeChat\antelope_fp_person\fn_dog.mp4')
+    cap = cv2.VideoCapture(str(video_path))
+    num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    save_path = video_path.parent / f'{video_path.stem}_rewrite.mp4'
+    vw = cv2.VideoWriter(str(save_path),
+                         cv2.VideoWriter_fourcc(*'mp4v'), fps,
+                         (width, height))
+    for _ in trange(num_frames):
+        _, frame = cap.read()
+        vw.write(frame)
+
+    cap.release()
+    vw.release()
+
+
 def main():
     r = Path(r'G:\Data\PD\working_datasets\web_video')
     vs = list(r.glob('*.mp4'))
