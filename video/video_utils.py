@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import cv2
@@ -9,13 +10,14 @@ def decode_fourcc(cc):
     return "".join([chr((int(cc) >> 8 * i) & 0xFF) for i in range(4)])
 
 
-def extract_frames(video_path, steps=10, ext='jpg'):
+def extract_frames(video_path, steps=10, ext='jpg', max_workers=8):
     """
     每{steps}帧提取1帧，并保存在和视频同名的文件夹中。
     Args:
         video_path (str): 带后缀的视频名，如“D:/001.mp4”
         steps (int): 每{steps}帧提取1帧，默认为10
         ext (str): 图片后缀，默认为jpg
+        max_workers (int): 最大线程数
     """
     # 1. 读取视频
     video_path = Path(video_path)
@@ -34,11 +36,14 @@ def extract_frames(video_path, steps=10, ext='jpg'):
     print(f'格式：{fourcc}')
 
     # 3. 新建保存帧的文件夹，与视频同目录
-    save_dir = video_path.parent / video_path.stem
-    save_dir.mkdir(exist_ok=True)
+    save_dir = video_path.parent / video_path.stem / 'images'
+    save_dir.mkdir(exist_ok=True, parents=True)
     print(f'帧保存在文件夹：{save_dir}')
 
-    # 4. 提取帧
+    # 4. 创建线程池
+    executor = ThreadPoolExecutor(max_workers)
+
+    # 5. 提取帧
     # len(str(num_frames))自动计算需要填充多少个0。
     # 例如：视频有100帧，即num_frames=100，那么str(num_frames)='100'，
     #      len(str(num_frames))=3，所以需要填充3个0。
@@ -55,7 +60,7 @@ def extract_frames(video_path, steps=10, ext='jpg'):
             continue
 
         save_path = save_dir / save_name.format(video_path.stem, i, num_0s, ext)
-        cv2.imwrite(str(save_path), frame)
+        executor.submit(cv2.imwrite, str(save_path), frame)  # noqa
 
 
 def rewrite_video():
@@ -77,11 +82,18 @@ def rewrite_video():
     vw.release()
 
 
+def extract_videos_in_a_dir():
+    r = Path(r'G:\Data\FEPD\Reolink\0918_feedback')
+    vs = sorted(r.glob('*.m[pok][4v]'))
+    # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
+    print(f'Number of videos: {len(vs)}')
+    for i, p in enumerate(vs):
+        print(f'{i + 1} / {len(vs)}')
+        extract_frames(str(p), 1)
+
+
 def main():
-    r = Path(r'G:\Data\PD\working_datasets\web_video')
-    vs = list(r.glob('*.mp4'))
-    for p in vs:
-        extract_frames(str(p))
+    extract_videos_in_a_dir()
 
 
 if __name__ == '__main__':
