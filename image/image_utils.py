@@ -121,6 +121,15 @@ def vis_yolo_box(cwd, cat_bias=0):
 
         # Save the image
         cv2.imwrite(str(vis_dir / img_path.name), img)
+def vis_mmap(mmap_path):
+    mmap_path = Path(mmap_path)
+    shape = re.findall(r'\d+', mmap_path.stem)
+    shape = tuple(map(int, shape))
+    imgs = np.memmap(mmap_path, mode='r', shape=shape)
+    for idx in [0, 1, -1]:
+        img = imgs[idx]
+        img_path = mmap_path.parent / f'{mmap_path.stem}_{idx}.jpg'
+        cv2.imwrite(str(img_path), img)
 
 
 def main():
