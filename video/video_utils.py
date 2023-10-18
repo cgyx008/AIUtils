@@ -1,3 +1,4 @@
+import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -36,47 +37,61 @@ def get_cap_and_attr(video_path):
     return cap, num_frames, width, height, fps, fourcc
 
 
-def extract_frames(video_path, steps=10, ext='jpg', max_workers=8):
+def extract_frames(video_path, steps=10, max_workers=0, ext='jpg'):
     """
     每{steps}帧提取1帧，并保存在和视频同名的文件夹中。
     Args:
-        video_path (str): 带后缀的视频名，如“D:/001.mp4”
+        video_path (str | Path): 带后缀的视频名，如“D:/001.mp4”
         steps (int): 每{steps}帧提取1帧，默认为10
-        ext (str): 图片后缀，默认为jpg
         max_workers (int): 最大线程数
+        ext (str): 图片后缀，默认为jpg
     """
     # 1. 读取视频和打印属性
     video_path = Path(video_path)
     cap, num_frames = get_cap_and_attr(video_path)[:2]
 
     # 2. 新建保存帧的文件夹，与视频同目录
-    save_dir = video_path.parent / video_path.stem / 'images'
-    save_dir.mkdir(exist_ok=True, parents=True)
-    print(f'帧保存在文件夹：{save_dir}')
+    frames_dir = video_path.parent / video_path.stem / 'frames'
+    images_dir = video_path.parent / video_path.stem / 'images'
+    os.umask(0)
+    frames_dir.mkdir(exist_ok=True, parents=True)
+    images_dir.mkdir(exist_ok=True, parents=True)
+    print(f'帧保存在文件夹：{frames_dir}')
+    print(f'图片保存在文件夹：{images_dir}')
 
     # 3. 创建线程池
-    executor = ThreadPoolExecutor(max_workers)
+    executor = ThreadPoolExecutor(max_workers) if max_workers else None
 
     # 4. 提取帧
     # len(str(num_frames))自动计算需要填充多少个0。
     # 例如：视频有100帧，即num_frames=100，那么str(num_frames)='100'，
     #      len(str(num_frames))=3，所以需要填充3个0。
     num_0s = len(str(num_frames))
-    # 图片名：视频名_帧索引.ext
-    save_name = '{}_{:0>{}d}.{}'
     for i in trange(num_frames):
         rtn, frame = cap.read()
         if not rtn:
             break
 
+        # 图片名：视频名_帧索引.ext
+        save_name = f'{video_path.stem}_{str(i).zfill(num_0s)}.{ext}'
+        save_path = frames_dir / save_name
+        if executor:
+            executor.submit(cv2.imwrite, str(save_path), frame)  # noqa
+        else:
+            cv2.imwrite(str(save_path), frame)
+
         # 如果i整除steps不等于0，跳过。每steps帧保存1帧。
         if i % steps != 0:
             continue
 
-        save_path = save_dir / save_name.format(video_path.stem, i, num_0s, ext)
-        executor.submit(cv2.imwrite, str(save_path), frame)  # noqa
+        save_path = images_dir / save_name
+        if executor:
+            executor.submit(cv2.imwrite, str(save_path), frame)  # noqa
+        else:
+            cv2.imwrite(str(save_path), frame)
 
-    executor.shutdown()
+    if executor:
+        executor.shutdown()
 
 
 def rewrite_video():
@@ -96,13 +111,14 @@ def rewrite_video():
 
 
 def extract_videos_in_a_dir():
-    r = Path(r'G:\Data\FEPD\Reolink\0918_feedback')
-    vs = sorted(r.glob('*.m[pok][4v]'))
+    r = Path(r'T:\Private\Reolink\embedded_feedback')
+    # vs = sorted(r.glob('*.m[pok][4v]'))
+    vs = sorted(r.glob('**/*.mp4'))
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
     print(f'Number of videos: {len(vs)}')
     for i, p in enumerate(vs):
         print(f'{i + 1} / {len(vs)}')
-        extract_frames(str(p), 1)
+        extract_frames(p)
 
 
 def main():
