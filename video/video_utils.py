@@ -37,13 +37,14 @@ def get_cap_and_attr(video_path):
     return cap, num_frames, width, height, fps, fourcc
 
 
-def extract_frames(video_path, steps=10, max_workers=0, ext='jpg'):
+def extract_frames(video_path, steps=10, max_workers=8, ext='jpg'):
     """
     每{steps}帧提取1帧，并保存在和视频同名的文件夹中。
     Args:
         video_path (str | Path): 带后缀的视频名，如“D:/001.mp4”
         steps (int): 每{steps}帧提取1帧，默认为10
-        max_workers (int): 最大线程数
+        max_workers (int): 最大线程数。Windows在网络挂载硬盘使用多线程会占用大量内存，
+            建议先在本地提帧，再复制到网络硬盘
         ext (str): 图片后缀，默认为jpg
     """
     # 1. 读取视频和打印属性
@@ -111,7 +112,7 @@ def rewrite_video():
 
 
 def extract_videos_in_a_dir():
-    r = Path(r'T:\Private\Reolink\embedded_feedback')
+    r = Path(r'G:\Data\FEPD\Reolink\embedded_feedback')
     # vs = sorted(r.glob('*.m[pok][4v]'))
     vs = sorted(r.glob('**/*.mp4'))
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
