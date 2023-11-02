@@ -283,6 +283,17 @@ def remove_small_objs():
     print(num_objs, num_small_objs)
 
 
+def xmls2txts(root, classes=('animal', 'person', 'vehicle')):
+    # xml2txt
+    root = Path(root)
+    txt_dir = root / 'labels'
+    txt_dir.mkdir(exist_ok=True)
+    xml_paths = sorted(root.glob('labels_xml/*.xml'))
+    for xml_path in tqdm(xml_paths):
+        txt_path = txt_dir / f'{xml_path.stem}.txt'
+        xml2txt(xml_path, txt_path, classes)
+
+
 def main():
     txt2xml(r'W:\ganhao\AD\wd\v04')
 
