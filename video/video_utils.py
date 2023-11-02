@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import cv2
-from tqdm import trange
+from tqdm import trange, tqdm
 
 
 def decode_fourcc(cc):
@@ -122,8 +122,27 @@ def extract_videos_in_a_dir():
         extract_frames(p)
 
 
+def rename_video():
+    video_dir = Path(r'T:\Public\ZSYDownload')
+    video_paths = sorted(video_dir.glob('*.m[po][4v]'))
+    path_map = {}
+    for p in tqdm(video_paths):
+        new_stem = ''.join(a if a.isalnum() else '_' for a in p.stem)
+        new_stem = new_stem.strip('_')
+        for _ in range(5):
+            new_stem = new_stem.replace('__', '_')
+
+        if new_stem in path_map:
+            raise RuntimeError(f'Duplicate names: {path_map[new_stem]} and {p}')
+        path_map[new_stem] = p
+
+    for new_stem, p in tqdm(path_map.items()):
+        new_path = p.with_stem(new_stem)
+        p.rename(new_path)
+
+
 def main():
-    extract_videos_in_a_dir()
+    rename_video()
 
 
 if __name__ == '__main__':
