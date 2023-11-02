@@ -1,7 +1,7 @@
 from pathlib import Path
 import shutil
 
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 
 def mv(src, dst, glob_patten='**/*', exclude_dir='/wd/'):
@@ -12,6 +12,12 @@ def mv(src, dst, glob_patten='**/*', exclude_dir='/wd/'):
         dst (str | Path): destination directory, if not exists, create.
         glob_patten (str): global patten matching.
         exclude_dir (str): exclude directory.
+
+    Examples:
+        >>> mv('/home/kemove/218Algo/ganhao/AD/wd/v04/labels_add_vehicle_labels',
+        >>>    '/home/kemove/218Algo/ganhao/AD/wd/v04/labels_add_vehicle_labels_voc',
+        >>>     '**/*.xml',
+        >>>     'None')
     """
     src, dst = Path(src), Path(dst)
     src_files = [p for p in src.glob(glob_patten)
@@ -28,9 +34,51 @@ def mv(src, dst, glob_patten='**/*', exclude_dir='/wd/'):
         shutil.move(p, dst / p.relative_to(src))
 
 
+def divide_dirs(root, num_divided_files=1000):
+    """
+    Divide files into different directories, {num_split_files} files in each directory.
+    Args:
+        root (str | Path): root
+        num_divided_files (int): the number of  files in each directory
+    Returns:
+
+    """
+    root = Path(root)
+    paths = sorted(root.glob('*'))
+    num_0s = len(str(len(paths) // num_divided_files))
+
+    # Make directories
+    for i in trange(len(paths) // num_divided_files):
+        (root / str(i).zfill(num_0s)).mkdir(parents=True, exist_ok=True)
+
+    # Move files
+    for i, p in enumerate(tqdm(paths)):
+        shutil.move(p, root / str(i).zfill(num_0s))
+
+
+def merge_divided_dirs(root):
+    """
+    Merge divided directories.
+    Args:
+        root (str | Path): root
+    """
+    # Glob paths
+    root = Path(root)
+    paths = sorted(root.glob('**/*'))
+
+    # Move files
+    file_paths = [p for p in paths if p.is_file()]
+    for p in tqdm(file_paths):
+        shutil.move(p, root)
+
+    # Remove empty directories
+    dir_paths = [p for p in paths if p.is_dir()]
+    for p in tqdm(dir_paths):
+        shutil.rmtree(p)
+
+
 def main():
-    mv('/home/kemove/4Tdisk/ganhao/AD',
-       '/home/kemove/4Tdisk/ganhao/Data/AD')
+    merge_divided_dirs(r'T:\Working\v04\clean_difficult_samples\labels_xml')
 
 
 if __name__ == '__main__':
