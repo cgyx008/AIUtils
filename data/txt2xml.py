@@ -9,7 +9,6 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
-from image.image_utils import vis_yolo_box
 
 r"""VOC format:
 <annotation>
@@ -288,18 +287,25 @@ def remove_small_objs():
 def xmls2txts(root, classes=('animal', 'person', 'vehicle')):
     # xml2txt
     root = Path(root)
+
+    # xml
+    xml_dir = root / 'labels_xml'
+    xml_paths = sorted(xml_dir.glob('**/*.xml'))
+
+    # txt
     txt_dir = root / 'labels'
     txt_dir.mkdir(exist_ok=True)
-    xml_paths = sorted(root.glob('labels_xml/**/*.xml'))
-
-    txt_paths = [(root / 'labels' / xml_path.relative_to(root / 'labels_xml')).with_suffix('.txt')
+    txt_paths = [(txt_dir / xml_path.relative_to(xml_dir)).with_suffix('.txt')
                  for xml_path in tqdm(xml_paths)]
     txt_parents = {str(txt_path.parent) for txt_path in tqdm(txt_paths)}
     for txt_parent in tqdm(txt_parents):
         Path(txt_parent).mkdir(parents=True, exist_ok=True)
 
+    # classes
+    classes = [classes] * len(xml_paths)
+
     with ThreadPoolExecutor(8) as executor:
-        list(tqdm(executor.map(xml2txt, xml_paths, txt_paths),
+        list(tqdm(executor.map(xml2txt, xml_paths, txt_paths, classes),
                   total=len(xml_paths)))
 
 
@@ -318,6 +324,7 @@ def create_empty_labels():
         if not xml_path.exists():
             write_xml(img_path, xml_path)
     assert 1
+
 
 def main():
     xmls2txts(r'W:\ganhao\AD\wd\v04', ('animal', 'person', 'vehicle'))
