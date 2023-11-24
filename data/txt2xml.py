@@ -1,4 +1,5 @@
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
@@ -8,6 +9,7 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
+from image.image_utils import vis_yolo_box
 
 r"""VOC format:
 <annotation>
@@ -72,7 +74,7 @@ end_fmt = '''</annotation>
 def txt2xml(root):
     """Transform txts in the root into xmls"""
     # Glob txts
-    txt_paths = sorted(Path(root).glob('**/*.txt'))
+    txt_paths = sorted(Path(root).glob('labels/*.txt'))
     s = os.sep  # '/' in Linux, '\\' in Windows
     for txt_path in tqdm(txt_paths):
         # Get xml path
@@ -119,7 +121,7 @@ def txt2xml(root):
             for class_id, box in zip(classes, boxes):
                 if class_id == -1:
                     continue
-                c = ['Animal', 'Person', 'Vehicle'][class_id]
+                c = ['Person', 'Vehicle'][class_id]
                 f.write(obj_fmt.format(c, *box))
             f.write(end_fmt)
 
@@ -288,14 +290,37 @@ def xmls2txts(root, classes=('animal', 'person', 'vehicle')):
     root = Path(root)
     txt_dir = root / 'labels'
     txt_dir.mkdir(exist_ok=True)
-    xml_paths = sorted(root.glob('labels_xml/*.xml'))
-    for xml_path in tqdm(xml_paths):
-        txt_path = txt_dir / f'{xml_path.stem}.txt'
-        xml2txt(xml_path, txt_path, classes)
+    xml_paths = sorted(root.glob('labels_xml/**/*.xml'))
 
+    txt_paths = [(root / 'labels' / xml_path.relative_to(root / 'labels_xml')).with_suffix('.txt')
+                 for xml_path in tqdm(xml_paths)]
+    txt_parents = {str(txt_path.parent) for txt_path in tqdm(txt_paths)}
+    for txt_parent in tqdm(txt_parents):
+        Path(txt_parent).mkdir(parents=True, exist_ok=True)
+
+    with ThreadPoolExecutor(8) as executor:
+        list(tqdm(executor.map(xml2txt, xml_paths, txt_paths),
+                  total=len(xml_paths)))
+
+
+def create_empty_labels():
+    cwd = Path(r'W:\ganhao\AD\wd\v04')
+    img_paths = sorted(cwd.glob('images/**/*.[jp][pn]g'))
+    for img_path in tqdm(img_paths):
+        txt_path = str(img_path).replace('images', 'labels')
+        xml_path = str(img_path).replace('images', 'labels_xml')
+        txt_path = Path(txt_path).with_suffix('.txt')
+        xml_path = Path(xml_path).with_suffix('.xml')
+
+        if not txt_path.exists():
+            with open(txt_path, 'w', encoding='utf-8') as f:
+                f.write('')
+        if not xml_path.exists():
+            write_xml(img_path, xml_path)
+    assert 1
 
 def main():
-    txt2xml(r'W:\ganhao\AD\wd\v04')
+    xmls2txts(r'W:\ganhao\AD\wd\v04', ('animal', 'person', 'vehicle'))
 
 
 if __name__ == '__main__':
