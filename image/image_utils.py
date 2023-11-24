@@ -1,8 +1,11 @@
+import re
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import cv2
 import numpy as np
-from tqdm import trange
+from PIL import Image
+from tqdm import tqdm
 
 
 def draw_rect_and_put_text(img, box, text, color=(0, 0, 255), box_thickness=1,
@@ -83,46 +86,75 @@ def cv2_imshow(img_path):
     else:
         ...
 
-def vis_yolo_box(cwd, cat_bias=0):
+
+def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
+    if save_path.exists():
+        return
+    assert img_path.stem == txt_path.stem
+
+    # Read the txt
+    with open(txt_path, 'r', encoding='utf-8') as f:
+        labels = np.array([list(map(eval, line.split())) for line in f])
+    if labels.size == 0:
+        classes, boxes = [], []
+    else:
+        classes, boxes = labels[:, 0].astype(int), labels[:, 1:]
+        boxes[:, 0] -= boxes[:, 2] / 2
+        boxes[:, 1] -= boxes[:, 3] / 2
+        boxes[:, 2] += boxes[:, 0]
+        boxes[:, 3] += boxes[:, 1]
+
+    # Read the image
+    img = cv2.imread(str(img_path))
+    if img is None:
+        with Image.open(str(img_path)) as img:
+            img = img.convert('RGB')
+        img = np.ascontiguousarray(np.array(img)[..., ::-1])
+        # print(f'The image is None! {img_path}')
+        # return
+
+    # Draw boxes
+    h, w = img.shape[:2]
+    if isinstance(boxes, np.ndarray):
+        boxes[:, [0, 2]] *= w
+        boxes[:, [1, 3]] *= h
+    for cls, box in zip(classes, boxes):
+        cls_id = cls + cls_bias
+        if cls_id > 2:
+            continue
+        cat = ('A', 'P', 'V')[cls_id]
+        color = [(255, 0, 0), (0, 255, 0), (0, 0, 255)][cls_id]
+        draw_rect_and_put_text(img, box, cat, color, 2)
+
+    # Save the image
+    cv2.imwrite(str(save_path), img)
+
+
+def vis_yolo_box(cwd, cls_bias=0, num_threads=8):
     cwd = Path(cwd)
-    img_paths = sorted(cwd.glob('images/*.[jp][pn]g'))
-    txt_paths = sorted(cwd.glob('labels/*.txt'))
+    img_paths = sorted(cwd.glob('images/**/*.[jp][pn]g'))
+    txt_paths = sorted(cwd.glob('labels/**/*.txt'))
     assert len(img_paths) == len(txt_paths)
 
     vis_dir = cwd / 'images_vis_labels'
     vis_dir.mkdir(exist_ok=True)
-    for i in trange(len(img_paths)):
-        img_path, txt_path = img_paths[i], txt_paths[i]
-        assert img_path.stem == txt_path.stem
+    save_paths = [vis_dir / img_path.relative_to(cwd / 'images')
+                  for img_path in img_paths]
+    # Create parent directories
+    save_parents = sorted(list({str(p.parent) for p in save_paths}))
+    for save_parent in tqdm(save_parents):
+        Path(save_parent).mkdir(parents=True, exist_ok=True)
 
-        # Read the txt
-        with open(txt_path, 'r', encoding='utf-8') as f:
-            labels = np.array([list(map(eval, line.split())) for line in f])
-        if labels.size == 0:
-            classes, boxes = [], []
-        else:
-            classes, boxes = labels[:, 0].astype(int), labels[:, 1:]
-            boxes[:, 0] -= boxes[:, 2] / 2
-            boxes[:, 1] -= boxes[:, 3] / 2
-            boxes[:, 2] += boxes[:, 0]
-            boxes[:, 3] += boxes[:, 1]
+    cls_bias = [cls_bias] * len(img_paths)
 
-        # Read the image
-        img = cv2.imread(str(img_path))
+    with ThreadPoolExecutor(num_threads) as executor:
+        list(tqdm(
+            executor.map(vis_an_image_and_boxes,
+                         img_paths, txt_paths, save_paths, cls_bias),
+            total=len(img_paths)
+        ))
 
-        # Draw boxes
-        h, w = img.shape[:2]
-        if isinstance(boxes, np.ndarray):
-            boxes[:, [0, 2]] *= w
-            boxes[:, [1, 3]] *= h
-        for cls, box in zip(classes, boxes):
-            cls_id = cls + cat_bias
-            cat = ('A', 'P', 'V')[cls_id]
-            color = [(255, 0, 0), (0, 255, 0), (0, 0, 255)][cls_id]
-            draw_rect_and_put_text(img, box, cat, color, 2)
 
-        # Save the image
-        cv2.imwrite(str(vis_dir / img_path.name), img)
 def vis_mmap(mmap_path):
     mmap_path = Path(mmap_path)
     shape = re.findall(r'\d+', mmap_path.stem)
@@ -135,7 +167,7 @@ def vis_mmap(mmap_path):
 
 
 def main():
-    vis_yolo_box(r'T:\Working\v03\YouTube\Wall_mounted_9MP', 1)
+    vis_yolo_box(r'W:\ganhao\AD\wd\v04', 0)
 
 
 if __name__ == '__main__':
