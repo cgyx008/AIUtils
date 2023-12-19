@@ -205,24 +205,24 @@ def write_xml(img_path, xml_path):
     segmented = ET.SubElement(root, 'segmented')
     segmented.text = '0'
     # object
-    obj = ET.SubElement(root, 'object')
-    name = ET.SubElement(obj, 'name')
-    name.text = 'Vehicle'  # name
-    pose = ET.SubElement(obj, 'pose')
-    pose.text = 'Unspecified'
-    truncated = ET.SubElement(obj, 'truncated')
-    truncated.text = '0'
-    difficult = ET.SubElement(obj, 'difficult')
-    difficult.text = '0'
-    bndbox = ET.SubElement(obj, 'bndbox')
-    xmin = ET.SubElement(bndbox, 'xmin')
-    xmin.text = '0'
-    ymin = ET.SubElement(bndbox, 'ymin')
-    ymin.text = '0'
-    xmax = ET.SubElement(bndbox, 'xmax')
-    xmax.text = '0'
-    ymax = ET.SubElement(bndbox, 'ymax')
-    ymax.text = '0'
+    # obj = ET.SubElement(root, 'object')
+    # name = ET.SubElement(obj, 'name')
+    # name.text = 'Vehicle'  # name
+    # pose = ET.SubElement(obj, 'pose')
+    # pose.text = 'Unspecified'
+    # truncated = ET.SubElement(obj, 'truncated')
+    # truncated.text = '0'
+    # difficult = ET.SubElement(obj, 'difficult')
+    # difficult.text = '0'
+    # bndbox = ET.SubElement(obj, 'bndbox')
+    # xmin = ET.SubElement(bndbox, 'xmin')
+    # xmin.text = '0'
+    # ymin = ET.SubElement(bndbox, 'ymin')
+    # ymin.text = '0'
+    # xmax = ET.SubElement(bndbox, 'xmax')
+    # xmax.text = '0'
+    # ymax = ET.SubElement(bndbox, 'ymax')
+    # ymax.text = '0'
 
     # Convert ElementTree to string
     xml_string = ET.tostring(root, encoding='utf-8')
