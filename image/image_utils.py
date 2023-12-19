@@ -106,10 +106,12 @@ def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
 
     # Read the image
     img = cv2.imread(str(img_path))
+    has_chinese = False
     if img is None:
         with Image.open(str(img_path)) as img:
             img = img.convert('RGB')
         img = np.ascontiguousarray(np.array(img)[..., ::-1])
+        has_chinese = True
         # print(f'The image is None! {img_path}')
         # return
 
@@ -127,7 +129,10 @@ def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
         draw_rect_and_put_text(img, box, cat, color, 2)
 
     # Save the image
-    cv2.imwrite(str(save_path), img)
+    if has_chinese:
+        Image.fromarray(img[..., ::-1]).save(str(save_path))
+    else:
+        cv2.imwrite(str(save_path), img)
 
 
 def vis_yolo_box(cwd, cls_bias=0, num_threads=8):
