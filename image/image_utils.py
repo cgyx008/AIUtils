@@ -171,8 +171,20 @@ def vis_mmap(mmap_path):
         cv2.imwrite(str(img_path), img)
 
 
+def verify_img(num_threads=8):
+    img_dir = Path(r'U:\Animal\Public\kaggle\cats_and_dogs')
+    img_paths = sorted(img_dir.glob('**/*.[jp][pn][g]'))
+
+    def _verify_img(img_path):
+        with Image.open(img_path) as im:
+            im.verify()
+
+    with ThreadPoolExecutor(num_threads) as executor:
+        list(tqdm(executor.map(_verify_img, img_paths), total=len(img_paths)))
+
+
 def main():
-    vis_yolo_box(r'W:\ganhao\AD\wd\v04', 0)
+    verify_img()
 
 
 if __name__ == '__main__':
