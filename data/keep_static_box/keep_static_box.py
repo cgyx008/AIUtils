@@ -133,6 +133,7 @@ def keep_static_box(iou_threshold=0.6):
         for k, boxes1 in labels1.items():
             boxes2 = labels2.get(k, None)
             if boxes2 is None:
+                labels2[k] = boxes1
                 continue
 
             iou = box_iou(torch.tensor(boxes1), torch.tensor(boxes2))
