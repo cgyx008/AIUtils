@@ -1,5 +1,6 @@
 import os
 from concurrent.futures import ThreadPoolExecutor
+# from functools import partial
 from pathlib import Path
 
 import cv2
@@ -18,14 +19,15 @@ def get_cap_and_attr(video_path):
         video_path (str | Path): 视频路径
 
     Returns:
-        (cv2.VideoCapture, int, int, int, str, str): 视频对象，帧数，帧宽，帧高，帧率，FOURCC
+        (cv2.VideoCapture, int, int, int, float, str):
+            视频对象，帧宽，帧高，帧数，帧率，FOURCC
     """
     cap = cv2.VideoCapture(str(video_path))
 
     num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
+    fps = float(cap.get(cv2.CAP_PROP_FPS))
     fourcc = decode_fourcc(cap.get(cv2.CAP_PROP_FOURCC))
 
     print(f"{video_path}视频属性：")
@@ -34,22 +36,23 @@ def get_cap_and_attr(video_path):
     print(f"帧率：{fps}")
     print(f"格式：{fourcc}")
 
-    return cap, num_frames, width, height, fps, fourcc
+    return cap, width, height, num_frames, fps, fourcc
 
 
-def extract_frames(video_path, steps=10, max_workers=8, ext='jpg'):
+def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg'):
     """
     每{steps}帧提取1帧，并保存在和视频同名的文件夹中。
     Args:
         video_path (str | Path): 带后缀的视频名，如“D:/001.mp4”
-        steps (int): 每{steps}帧提取1帧，默认为10
+        steps (int): 每{steps}帧提取1帧，默认为10，当为0时，按秒取帧
+        seconds (int): 每{seconds}秒提取1帧，默认为0，表示按帧间隔取帧
         max_workers (int): 最大线程数。Windows在网络挂载硬盘使用多线程会占用大量内存，
             建议先在本地提帧，再复制到网络硬盘
         ext (str): 图片后缀，默认为jpg
     """
     # 1. 读取视频和打印属性
     video_path = Path(video_path)
-    cap, num_frames = get_cap_and_attr(video_path)[:2]
+    cap, width, height, num_frames, fps, fourcc = get_cap_and_attr(video_path)
 
     # 2. 新建保存帧的文件夹，与视频同目录
     frames_dir = video_path.parent / video_path.stem / 'frames'
@@ -75,17 +78,20 @@ def extract_frames(video_path, steps=10, max_workers=8, ext='jpg'):
 
         # 图片名：视频名_帧索引.ext
         save_name = f'{video_path.stem}_{str(i).zfill(num_0s)}.{ext}'
-        save_path = frames_dir / save_name
-        if executor:
-            executor.submit(cv2.imwrite, str(save_path), frame)  # noqa
-        else:
-            cv2.imwrite(str(save_path), frame)
+        # save_path = frames_dir / save_name
+        # if executor:
+        #     executor.submit(cv2.imwrite, str(save_path), frame)  # noqa
+        # else:
+        #     cv2.imwrite(str(save_path), frame)
 
-        # 如果i整除steps不等于0，跳过。每steps帧保存1帧。
-        if i % steps != 0:
+        # 如果i整除interval不等于0，跳过。每interval帧保存1帧。
+        interval = steps or int(fps * seconds)
+        if i % interval != 0:
             continue
 
         save_path = images_dir / save_name
+        if save_path.exists():
+            continue
         if executor:
             executor.submit(cv2.imwrite, str(save_path), frame)  # noqa
         else:
@@ -96,8 +102,8 @@ def extract_frames(video_path, steps=10, max_workers=8, ext='jpg'):
 
 
 def rewrite_video():
-    video_path = Path(r'G:\Data\AD\reolink\videos\EnWeChat\antelope_fp_person\fn_dog.mp4')
-    cap, num_frames, width, height, fps, _ = get_cap_and_attr(video_path)
+    video_path = Path(r'G:\Data\AD\reolink\test_feedback\20231125\TP_male_deer_FP_female_deer-RecM05_20231124_194143_194203_SR_671E8A000_487599.mp4')
+    cap, width, height, num_frames, fps, fourcc = get_cap_and_attr(video_path)
 
     save_path = video_path.parent / f'{video_path.stem}_rewrite.mp4'
     vw = cv2.VideoWriter(str(save_path),
@@ -112,14 +118,19 @@ def rewrite_video():
 
 
 def extract_videos_in_a_dir():
-    r = Path(r'G:\Data\FEPD\Reolink\embedded_feedback')
-    # vs = sorted(r.glob('*.m[pok][4v]'))
-    vs = sorted(r.glob('**/*.mp4'))
+    r = Path(r'T:\Private\Reolink\test_feedback')
+    vs = sorted(r.glob('**/*.[am][pokv][4iv]'))
+    # vs = sorted(r.glob('**/*.mp4'))
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
     print(f'Number of videos: {len(vs)}')
     for i, p in enumerate(vs):
         print(f'{i + 1} / {len(vs)}')
-        extract_frames(p)
+        extract_frames(p, steps=0, seconds=2, max_workers=0)
+
+    # fast about 30%
+    # func = partial(extract_frames, steps=0, seconds=2, max_workers=0)
+    # with ThreadPoolExecutor(8) as executor:
+    #     list(executor.map(func, vs))
 
 
 def rename_video():
@@ -142,7 +153,8 @@ def rename_video():
 
 
 def main():
-    rename_video()
+    # extract_frames(r'D:\Projects\AD_pytools\AWS\Docker_wr_dev\test_crop\1440p_3_deer.mp4')
+    extract_videos_in_a_dir()
 
 
 if __name__ == '__main__':
