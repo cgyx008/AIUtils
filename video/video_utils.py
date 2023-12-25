@@ -45,7 +45,7 @@ def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg'):
     Args:
         video_path (str | Path): 带后缀的视频名，如“D:/001.mp4”
         steps (int): 每{steps}帧提取1帧，默认为10，当为0时，按秒取帧
-        seconds (int): 每{seconds}秒提取1帧，默认为0，表示按帧间隔取帧
+        seconds (float): 每{seconds}秒提取1帧，默认为0，表示按帧间隔取帧
         max_workers (int): 最大线程数。Windows在网络挂载硬盘使用多线程会占用大量内存，
             建议先在本地提帧，再复制到网络硬盘
         ext (str): 图片后缀，默认为jpg
@@ -118,14 +118,14 @@ def rewrite_video():
 
 
 def extract_videos_in_a_dir():
-    r = Path(r'T:\Private\Reolink\test_feedback')
+    r = Path(r'G:\Data\AD\reolink\videos\dog')
     vs = sorted(r.glob('**/*.[am][pokv][4iv]'))
     # vs = sorted(r.glob('**/*.mp4'))
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
     print(f'Number of videos: {len(vs)}')
     for i, p in enumerate(vs):
         print(f'{i + 1} / {len(vs)}')
-        extract_frames(p, steps=0, seconds=2, max_workers=0)
+        extract_frames(p, steps=0, seconds=0.5, max_workers=8)
 
     # fast about 30%
     # func = partial(extract_frames, steps=0, seconds=2, max_workers=0)
