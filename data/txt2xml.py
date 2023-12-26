@@ -120,7 +120,7 @@ def txt2xml(root):
             for class_id, box in zip(classes, boxes):
                 if class_id == -1:
                     continue
-                c = ['Person', 'Vehicle'][class_id]
+                c = ['person', 'vehicle'][class_id]
                 f.write(obj_fmt.format(c, *box))
             f.write(end_fmt)
 
@@ -167,6 +167,50 @@ def xml2txt(xml_path, txt_path=None, classes=('animal', 'person', 'vehicle')):
     # Write in txt
     with open(txt_path, 'w', encoding='utf-8') as f:
         f.writelines(txt_lines)
+
+
+def read_xml(xml_path):
+    label = {'path': str(xml_path)}
+    # Get root
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+
+    # Get image width and height
+    width = int(root.find('size').find('width').text)
+    height = int(root.find('size').find('height').text)
+    label['width'] = width
+    label['height'] = height
+
+    # Get object
+    objs = root.findall('object')
+    has_difficult = False
+    class_names = set()
+    obj_list = []
+    for obj in objs:
+        # Get class_id
+        name = obj.find('name').text.lower()
+        class_names.add(name)
+        # Get box
+        xmin = int(obj.find('bndbox').find('xmin').text)
+        ymin = int(obj.find('bndbox').find('ymin').text)
+        xmax = int(obj.find('bndbox').find('xmax').text)
+        ymax = int(obj.find('bndbox').find('ymax').text)
+        # Get difficult
+        difficult = int(obj.find('difficult').text)
+        has_difficult = has_difficult or bool(difficult)
+
+        obj_list.append({'name': name,
+                         'box': [xmin, ymin, xmax, ymax],
+                         'difficult': difficult})
+    label['has_difficult'] = has_difficult
+    label['objects'] = obj_list
+    for class_name in class_names:
+        label[class_name] = [
+            {'box': obj['box'], 'difficult': obj['difficult']}
+            for obj in obj_list if obj['name'] == class_name
+        ]
+
+    return label
 
 
 def write_xml(img_path, xml_path):
@@ -310,7 +354,7 @@ def xmls2txts(root, classes=('animal', 'person', 'vehicle')):
 
 
 def create_empty_labels():
-    cwd = Path(r'W:\ganhao\AD\wd\v04')
+    cwd = Path(r'U:\Animal\Private\218_animal\turkey\turkey-day-2')
     img_paths = sorted(cwd.glob('images/**/*.[jp][pn]g'))
     for img_path in tqdm(img_paths):
         txt_path = str(img_path).replace('images', 'labels')
@@ -323,11 +367,15 @@ def create_empty_labels():
                 f.write('')
         if not xml_path.exists():
             write_xml(img_path, xml_path)
-    assert 1
 
 
 def main():
-    xmls2txts(r'W:\ganhao\AD\wd\v04', ('animal', 'person', 'vehicle'))
+    # xmls2txts(r'U:\Animal\Working\Detection\v05\reolink\user_feedback\20231219_latest_10w')
+    root = Path(r'T:\Private\Reolink\test_feedback')
+    roots = sorted(list(root.glob('*/*')))
+    for i, root in enumerate(roots):
+        print(f'{i + 1} / {len(roots)}, Processing {root}')
+        txt2xml(root)
 
 
 if __name__ == '__main__':
