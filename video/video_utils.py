@@ -63,6 +63,11 @@ def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg'):
     print(f'帧保存在文件夹：{frames_dir}')
     print(f'图片保存在文件夹：{images_dir}')
 
+    # 如果i整除interval不等于0，跳过。每interval帧保存1帧。
+    interval = steps or int(fps * seconds)
+    if interval == 0:
+        return
+
     # 3. 创建线程池
     executor = ThreadPoolExecutor(max_workers) if max_workers else None
 
@@ -85,7 +90,6 @@ def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg'):
         #     cv2.imwrite(str(save_path), frame)
 
         # 如果i整除interval不等于0，跳过。每interval帧保存1帧。
-        interval = steps or int(fps * seconds)
         if i % interval != 0:
             continue
 
@@ -124,6 +128,8 @@ def extract_videos_in_a_dir():
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
     print(f'Number of videos: {len(vs)}')
     for i, p in enumerate(vs):
+        if i < 0:
+            continue
         print(f'{i + 1} / {len(vs)}')
         extract_frames(p, steps=0, seconds=0.5, max_workers=8)
 
