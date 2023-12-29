@@ -4,7 +4,7 @@ import shutil
 from tqdm import tqdm, trange
 
 
-def mv(src, dst, glob_patten='**/*', exclude_dir='/wd/'):
+def mv(src, dst, glob_patten='**/*', exclude_dir='/None/'):
     """Move src to dst (dir).
 
     Args:
@@ -30,8 +30,8 @@ def mv(src, dst, glob_patten='**/*', exclude_dir='/wd/'):
         p.mkdir(parents=True, exist_ok=True)
 
     # Move files
-    for p in tqdm(src_files, smoothing=0):
-        shutil.move(p, dst / p.relative_to(src))
+    for p in tqdm(src_files, smoothing=0, ascii=True):
+        shutil.copy2(p, dst / p.relative_to(src))
 
 
 def divide_dirs(root, num_divided_files=1000):
@@ -67,18 +67,22 @@ def merge_divided_dirs(root):
     paths = sorted(root.glob('**/*'))
 
     # Move files
-    file_paths = [p for p in paths if p.is_file()]
+    file_paths = [p for p in tqdm(paths) if p.is_file()]
     for p in tqdm(file_paths):
         shutil.move(p, root)
 
     # Remove empty directories
-    dir_paths = [p for p in paths if p.is_dir()]
+    dir_paths = [p for p in tqdm(paths) if p.is_dir()]
     for p in tqdm(dir_paths):
         shutil.rmtree(p)
 
 
 def main():
-    merge_divided_dirs(r'T:\Working\v04\clean_difficult_samples\labels_xml')
+    mv(
+        r'T:\Working\v05\add_test_feedback\train',
+        r'T:\Train\v05\train',
+        exclude_dir='labels_xml'
+    )
 
 
 if __name__ == '__main__':
