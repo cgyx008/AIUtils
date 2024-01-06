@@ -140,11 +140,13 @@ def extract_videos_in_a_dir():
 
 
 def rename_video():
-    video_dir = Path(r'T:\Public\ZSYDownload')
+    # TODO: Add timestamp prefix to avoid empty file name
+    video_dir = Path(r'U:\Animal\Private\reolink\user_feedback\video_1920_1080\animal')
     video_paths = sorted(video_dir.glob('*.m[po][4v]'))
     path_map = {}
     for p in tqdm(video_paths):
-        new_stem = ''.join(a if a.isalnum() else '_' for a in p.stem)
+        new_stem = ''.join(a if a.isalnum() and a.isascii() else '_'
+                           for a in p.stem)
         new_stem = new_stem.strip('_')
         for _ in range(5):
             new_stem = new_stem.replace('__', '_')
