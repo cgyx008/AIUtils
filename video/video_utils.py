@@ -1,3 +1,4 @@
+import datetime
 import os
 from concurrent.futures import ThreadPoolExecutor
 # from functools import partial
@@ -39,7 +40,8 @@ def get_cap_and_attr(video_path):
     return cap, width, height, num_frames, fps, fourcc
 
 
-def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg'):
+def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg',
+                   extract_frames=False):
     """
     每{steps}帧提取1帧，并保存在和视频同名的文件夹中。
     Args:
@@ -49,6 +51,7 @@ def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg'):
         max_workers (int): 最大线程数。Windows在网络挂载硬盘使用多线程会占用大量内存，
             建议先在本地提帧，再复制到网络硬盘
         ext (str): 图片后缀，默认为jpg
+        extract_frames (bool): 是否提取每一帧到frames文件夹
     """
     # 1. 读取视频和打印属性
     video_path = Path(video_path)
@@ -83,11 +86,12 @@ def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg'):
 
         # 图片名：视频名_帧索引.ext
         save_name = f'{video_path.stem}_{str(i).zfill(num_0s)}.{ext}'
-        # save_path = frames_dir / save_name
-        # if executor:
-        #     executor.submit(cv2.imwrite, str(save_path), frame)  # noqa
-        # else:
-        #     cv2.imwrite(str(save_path), frame)
+        if extract_frames:
+            save_path = frames_dir / save_name
+            if executor:
+                executor.submit(cv2.imwrite, str(save_path), frame)  # noqa
+            else:
+                cv2.imwrite(str(save_path), frame)
 
         # 如果i整除interval不等于0，跳过。每interval帧保存1帧。
         if i % interval != 0:
@@ -122,7 +126,7 @@ def rewrite_video():
 
 
 def extract_videos_in_a_dir():
-    r = Path(r'G:\Data\AD\reolink\videos\dog')
+    r = Path(r'T:\Private\Reolink\embedded_feedback\20240109')
     vs = sorted(r.glob('**/*.[am][pokv][4iv]'))
     # vs = sorted(r.glob('**/*.mp4'))
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
@@ -131,7 +135,8 @@ def extract_videos_in_a_dir():
         if i < 0:
             continue
         print(f'{i + 1} / {len(vs)}')
-        extract_frames(p, steps=0, seconds=0.5, max_workers=8)
+        extract_frames(p, steps=0, seconds=0.5, max_workers=8,
+                       extract_frames=True)
 
     # fast about 30%
     # func = partial(extract_frames, steps=0, seconds=2, max_workers=0)
@@ -140,16 +145,21 @@ def extract_videos_in_a_dir():
 
 
 def rename_video():
-    # TODO: Add timestamp prefix to avoid empty file name
-    video_dir = Path(r'U:\Animal\Private\reolink\user_feedback\video_1920_1080\animal')
+    video_dir = Path(r'T:\Private\Reolink\embedded_feedback\20240109')
     video_paths = sorted(video_dir.glob('*.m[po][4v]'))
     path_map = {}
     for p in tqdm(video_paths):
+        stat = p.stat()
+        ts = datetime.datetime.fromtimestamp(stat.st_mtime)
+        time_prefix = ts.strftime("%Y%m%d_%H%M%S")
+
         new_stem = ''.join(a if a.isalnum() and a.isascii() else '_'
                            for a in p.stem)
-        new_stem = new_stem.strip('_')
         for _ in range(5):
             new_stem = new_stem.replace('__', '_')
+
+        new_stem = f'{time_prefix}_{new_stem}'
+        new_stem = new_stem.strip('_')
 
         if new_stem in path_map:
             raise RuntimeError(f'Duplicate names: {path_map[new_stem]} and {p}')
@@ -162,6 +172,7 @@ def rename_video():
 
 def main():
     # extract_frames(r'D:\Projects\AD_pytools\AWS\Docker_wr_dev\test_crop\1440p_3_deer.mp4')
+    # rename_video()
     extract_videos_in_a_dir()
 
 
