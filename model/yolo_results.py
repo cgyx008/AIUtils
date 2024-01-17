@@ -11,7 +11,7 @@ from tqdm import tqdm
 from image.image_utils import draw_rect_and_put_text
 
 
-def xcycwh_2_x1y1x2y2(box: np.ndarray):
+def xcycwh2xyxy(box: np.ndarray):
     box_cp = box.copy()
     box_cp[:, 0] -= box_cp[:, 2] / 2
     box_cp[:, 1] -= box_cp[:, 3] / 2
@@ -45,11 +45,11 @@ def cmp_label_txt_and_pred_txt(label_txt, pred_txt, num_classes=3):
     else:
         preds = np.array([])
 
-    # xcycwh -> x1y1x2y2
+    # xcycwh -> xyxy
     if labels.size:
-        labels[:, 1:5] = xcycwh_2_x1y1x2y2(labels[:, 1:5])
+        labels[:, 1:5] = xcycwh2xyxy(labels[:, 1:5])
     if preds.size:
-        preds[:, 1:5] = xcycwh_2_x1y1x2y2(preds[:, 1:5])
+        preds[:, 1:5] = xcycwh2xyxy(preds[:, 1:5])
 
     if not labels.size and not preds.size:
         return tp, fp, fn
@@ -144,17 +144,17 @@ def _save_fp_and_fn(line, pred_dir, save_dir, num_classes=3):
 
 def save_fp_and_fn():
     """Save FP and FN images"""
-    txt = r'Z:\2TSSD\ganhao\Data\AD\wd\val.txt'
+    txt = r'Z:\8TSSD\ganhao\data\fepvd\v05\test.txt'
     with open(txt) as f:
         lines = f.readlines()
 
-    pred_dir = r'Z:\2TSSD\ganhao\Projects\ultralytics\runs\detect\predict\wdv04_002_remove_coco_val\labels'
-    save_dir = r'W:\ganhao\AD\wd\v04\vis\wdv04_002_remove_coco_val'
+    pred_dir = r'Z:\8TSSD\ganhao\projects\ultralytics\runs\detect\fepvd\predict\fepvd_v05_000_epochs_300_test\labels'
+    save_dir = r'T:\Working\v05\clean_test'
     pred_dirs = [pred_dir] * len(lines)
     save_dirs = [save_dir] * len(lines)
-    (Path(save_dir) / 'FP').mkdir(parents=True, exist_ok=True)
-    (Path(save_dir) / 'FN').mkdir(parents=True, exist_ok=True)
-    num_classes_list = [3] * len(lines)
+    (Path(save_dir) / 'fp').mkdir(parents=True, exist_ok=True)
+    (Path(save_dir) / 'fn').mkdir(parents=True, exist_ok=True)
+    num_classes_list = [2] * len(lines)
 
     with ThreadPoolExecutor(8) as executor:
         list(tqdm(executor.map(_save_fp_and_fn,
