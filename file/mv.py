@@ -48,12 +48,15 @@ def divide_dirs(root, num_divided_files=1000):
     num_0s = len(str(len(paths) // num_divided_files))
 
     # Make directories
-    for i in trange(len(paths) // num_divided_files):
-        (root / str(i).zfill(num_0s)).mkdir(parents=True, exist_ok=True)
+    parents = {str(root / str(i // num_divided_files).zfill(num_0s))
+               for i in range(len(paths))}
+    parents = sorted(parents)
+    for parent in tqdm(parents):
+        Path(parent).mkdir(parents=True, exist_ok=True)
 
     # Move files
     for i, p in enumerate(tqdm(paths)):
-        shutil.move(p, root / str(i).zfill(num_0s))
+        shutil.move(p, root / str(i // num_divided_files).zfill(num_0s))
 
 
 def merge_divided_dirs(root):
@@ -78,11 +81,7 @@ def merge_divided_dirs(root):
 
 
 def main():
-    mv(
-        r'T:\Working\v05\add_test_feedback\train',
-        r'T:\Train\v05\train',
-        exclude_dir='labels_xml'
-    )
+    merge_divided_dirs(r'T:\Working\v05\add_embeded_feedback\labels_xml')
 
 
 if __name__ == '__main__':
