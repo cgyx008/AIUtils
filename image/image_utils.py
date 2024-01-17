@@ -96,13 +96,14 @@ def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
     with open(txt_path, 'r', encoding='utf-8') as f:
         labels = np.array([list(map(eval, line.split())) for line in f])
     if labels.size == 0:
-        classes, boxes = [], []
+        classes, boxes, confs = [], [], []
     else:
-        classes, boxes = labels[:, 0].astype(int), labels[:, 1:]
+        classes, boxes = labels[:, 0].astype(int), labels[:, 1:5]
         boxes[:, 0] -= boxes[:, 2] / 2
         boxes[:, 1] -= boxes[:, 3] / 2
         boxes[:, 2] += boxes[:, 0]
         boxes[:, 3] += boxes[:, 1]
+        confs = labels[:, 5] if labels.shape[1] == 6 else [-1] * len(labels)
 
     # Read the image
     img = cv2.imread(str(img_path))
@@ -120,13 +121,14 @@ def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
     if isinstance(boxes, np.ndarray):
         boxes[:, [0, 2]] *= w
         boxes[:, [1, 3]] *= h
-    for cls, box in zip(classes, boxes):
+    for cls, box, conf in zip(classes, boxes, confs):
         cls_id = cls + cls_bias
         if cls_id > 2:
             continue
         cat = ('A', 'P', 'V')[cls_id]
+        text = f'{cat} {conf:.2f}' if conf > 0 else cat
         color = [(255, 0, 0), (0, 255, 0), (0, 0, 255)][cls_id]
-        draw_rect_and_put_text(img, box, cat, color, 2)
+        draw_rect_and_put_text(img, box, text, color, 2)
 
     # Save the image
     if has_chinese:
@@ -184,7 +186,10 @@ def verify_img(num_threads=8):
 
 
 def main():
-    verify_img()
+    vis_yolo_box(
+        r'G:\Data\FEPD\Reolink\embedded_feedback\v05\add_embeded_feedback',
+        cls_bias=1
+    )
 
 
 if __name__ == '__main__':
