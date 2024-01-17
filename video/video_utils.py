@@ -79,7 +79,7 @@ def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg',
     # 例如：视频有100帧，即num_frames=100，那么str(num_frames)='100'，
     #      len(str(num_frames))=3，所以需要填充3个0。
     num_0s = len(str(num_frames))
-    for i in trange(num_frames):
+    for i in trange(num_frames, ascii=True):
         rtn, frame = cap.read()
         if not rtn:
             break
