@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 import shutil
 
@@ -31,6 +32,7 @@ def mv(src, dst, glob_patten='**/*', exclude_dir='/None/'):
 
     # Move files
     for p in tqdm(src_files, smoothing=0, ascii=True):
+        time.sleep(0.5)
         shutil.copy2(p, dst / p.relative_to(src))
 
 
@@ -81,7 +83,11 @@ def merge_divided_dirs(root):
 
 
 def main():
-    merge_divided_dirs(r'T:\Working\v05\add_embeded_feedback\labels_xml')
+    src = Path(r'G:\data\AD')
+    src_dirs = sorted(src.glob('*'))
+    dst = Path(r'U:\Animal\Public')
+    for d in src_dirs:
+        mv(d, dst / d.stem / 'backup')
 
 
 if __name__ == '__main__':
