@@ -70,7 +70,7 @@ end_fmt = '''</annotation>
 '''
 
 
-def txt2xml(root):
+def txt2xml(root, classes=('person', 'vehicle')):
     """Transform txts in the root into xmls"""
     # Glob txts
     txt_paths = sorted(Path(root).glob('labels/*.txt'))
@@ -88,7 +88,7 @@ def txt2xml(root):
             labels = np.array([list(map(eval, line.split())) for line in f])
         if labels.size == 0:
             labels = np.zeros((1, 5)) - 1  # Compatibility with empty images
-        classes, boxes = labels[:, 0].astype(int), labels[:, 1:]
+        class_ids, boxes = labels[:, 0].astype(int), labels[:, 1:]
 
         # (xc, yc, w, h) norm -> (xmin, ymin, xmax, ymax) norm
         boxes[:, 0] -= boxes[:, 2] / 2
@@ -117,10 +117,10 @@ def txt2xml(root):
         xml_path.parent.mkdir(parents=True, exist_ok=True)
         with open(xml_path, 'w', encoding='utf-8') as f:
             f.write(start_fmt.format(img_path.name, str(img_path), w, h))
-            for class_id, box in zip(classes, boxes):
+            for class_id, box in zip(class_ids, boxes):
                 if class_id == -1:
                     continue
-                c = ['person', 'vehicle'][class_id]
+                c = classes[class_id]
                 f.write(obj_fmt.format(c, *box))
             f.write(end_fmt)
 
@@ -370,12 +370,7 @@ def create_empty_labels():
 
 
 def main():
-    # xmls2txts(r'U:\Animal\Working\Detection\v05\reolink\user_feedback\20231219_latest_10w')
-    root = Path(r'T:\Private\Reolink\test_feedback')
-    roots = sorted(list(root.glob('*/*')))
-    for i, root in enumerate(roots):
-        print(f'{i + 1} / {len(roots)}, Processing {root}')
-        txt2xml(root)
+    txt2xml('/home/kemove/8TSSD/ganhao/data/fepvd/v05/working')
 
 
 if __name__ == '__main__':
