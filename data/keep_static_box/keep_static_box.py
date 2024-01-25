@@ -132,6 +132,7 @@ def keep_static_box(iou_threshold=0.6):
         labels2, root = get_xml_labels(xml)
         for k, boxes1 in labels1.items():
             boxes2 = labels2.get(k, None)
+            # boxes2 = None
             if boxes2 is None:
                 labels2[k] = boxes1
                 continue
