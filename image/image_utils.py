@@ -7,6 +7,8 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
+from data.dataset import get_img_txt_xml
+
 
 def draw_rect_and_put_text(img, box, text, color=(0, 0, 255), box_thickness=1,
                            font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=0.6,
@@ -91,6 +93,8 @@ def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
     if save_path.exists():
         return
     assert img_path.stem == txt_path.stem
+    if not Path(txt_path).exists():
+        return
 
     # Read the txt
     with open(txt_path, 'r', encoding='utf-8') as f:
@@ -139,14 +143,12 @@ def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
 
 def vis_yolo_box(cwd, cls_bias=0, num_threads=8):
     cwd = Path(cwd)
-    img_paths = sorted(cwd.glob('images/**/*.[jp][pn]g'))
-    txt_paths = sorted(cwd.glob('labels/**/*.txt'))
-    assert len(img_paths) == len(txt_paths)
-
-    vis_dir = cwd / 'images_vis_labels'
-    vis_dir.mkdir(exist_ok=True)
-    save_paths = [vis_dir / img_path.relative_to(cwd / 'images')
-                  for img_path in img_paths]
+    img_paths = sorted(cwd.glob('**/images/**/*.[jp][pn]g'))
+    txt_paths = [get_img_txt_xml(p)[1] for p in tqdm(img_paths)]
+    save_paths = [
+        Path(str(p).replace('images', 'images_vis_labels'))
+        for p in img_paths
+    ]
     # Create parent directories
     save_parents = sorted(list({str(p.parent) for p in save_paths}))
     for save_parent in tqdm(save_parents):
@@ -187,7 +189,7 @@ def verify_img(num_threads=8):
 
 def main():
     vis_yolo_box(
-        r'G:\Data\FEPD\Reolink\embedded_feedback\v05\add_embeded_feedback',
+        '/home/kemove/8TSSD/ganhao/data/fepvd/v05/working/20240123/predict/fepvd_v05_009_add_background_fp_0123_pretrain_train_008',
         cls_bias=1
     )
 
