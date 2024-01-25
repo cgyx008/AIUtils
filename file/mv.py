@@ -20,6 +20,7 @@ def mv(src, dst, glob_patten='**/*', exclude_dir='/None/'):
         >>>     '**/*.xml',
         >>>     'None')
     """
+    print(f'Copying {src} to {dst}')
     src, dst = Path(src), Path(dst)
     src_files = [p for p in src.glob(glob_patten)
                  if exclude_dir not in str(p) and p.is_file()]
@@ -31,9 +32,30 @@ def mv(src, dst, glob_patten='**/*', exclude_dir='/None/'):
         p.mkdir(parents=True, exist_ok=True)
 
     # Move files
+    err_files = {}
     for p in tqdm(src_files, smoothing=0, ascii=True):
-        time.sleep(0.5)
-        shutil.copy2(p, dst / p.relative_to(src))
+        if (dst / p.relative_to(src)).exists():
+            continue
+        # time.sleep(0.5)
+        try:
+            shutil.copy2(p, dst / p.relative_to(src))
+        except OSError as e:
+            print(e)
+            print(f'src: {p}, dst: {dst / p.relative_to(src)}')
+            err_files[str(p)] = dst / p.relative_to(src)
+            continue
+
+    if not err_files:
+        return
+    print('Copying error files...')
+    for src, dst in tqdm(err_files.items(), smoothing=0, ascii=True):
+        try:
+            # time.sleep(0.5)
+            shutil.copy2(src, dst)
+        except OSError as e:
+            print(e)
+            print(f'src: {src}, dst: {dst}')
+            continue
 
 
 def divide_dirs(root, num_divided_files=1000):
@@ -83,11 +105,8 @@ def merge_divided_dirs(root):
 
 
 def main():
-    src = Path(r'G:\data\AD')
-    src_dirs = sorted(src.glob('*'))
-    dst = Path(r'U:\Animal\Public')
-    for d in src_dirs:
-        mv(d, dst / d.stem / 'backup')
+    mv(r'Z:\8TSSD\ganhao\data\fepvd\v05\train',
+       r'G:\data\fepvd\train\train')
 
 
 if __name__ == '__main__':
