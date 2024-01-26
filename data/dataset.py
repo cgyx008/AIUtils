@@ -39,38 +39,39 @@ def get_img_txt_xml(path):
     return [img_path, txt_path, xml_path]
 
 
-def split_train_val(root):
+def split_train_val(root, make_copy=False):
     root = Path(root)
     img_paths = sorted(root.glob('images/**/*.[jp][pn]g'))
     img_names = list({p.name for p in img_paths})
     assert len(img_paths) == len(img_names)
     random.shuffle(img_names)
 
-    num_val = len(img_names) // 10
-    train_img_names = sorted(img_names[:-num_val])
-    val_img_names = sorted(img_names[-num_val:])
+    num_val = len(img_paths) // 10
+    train_imgs = sorted(img_paths[:-num_val])
+    val_imgs = sorted(img_paths[-num_val:])
 
-    train_lines = [f'./{n}\n' for n in train_img_names]
-    val_lines = [f'./{n}\n' for n in val_img_names]
+    train_lines = [f'{n}\n' for n in train_imgs]
+    val_lines = [f'{n}\n' for n in val_imgs]
     with open(root / 'train.txt', 'w', encoding='utf-8') as f:
         f.writelines(train_lines)
     with open(root / 'val.txt', 'w', encoding='utf-8') as f:
         f.writelines(val_lines)
 
-    train_dir = root / 'train'
-    val_dir = root / 'val'
-    train_dir.mkdir(parents=True, exist_ok=True)
-    val_dir.mkdir(parents=True, exist_ok=True)
+    if make_copy:
+        train_dir = root / 'train'
+        val_dir = root / 'val'
+        train_dir.mkdir(parents=True, exist_ok=True)
+        val_dir.mkdir(parents=True, exist_ok=True)
 
-    val_img_names = set(val_img_names)
-    for img_path in tqdm(img_paths):
-        itx = get_img_txt_xml(img_path)
+        val_imgs = {str(p) for p in val_imgs}
+        for img_path in tqdm(img_paths):
+            itx = get_img_txt_xml(img_path)
 
-        dst_dir = val_dir if img_path.name in val_img_names else train_dir
+            dst_dir = val_dir if str(img_path) in val_imgs else train_dir
 
-        dst_img = dst_dir / img_path.relative_to(root)
-        dst_img.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(img_path, dst_img)
+            dst_img = dst_dir / img_path.relative_to(root)
+            dst_img.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(img_path, dst_img)
 
         if itx[1].exists():
             dst_txt = dst_dir / itx[1].relative_to(root)
@@ -84,7 +85,7 @@ def split_train_val(root):
 
 
 def main():
-    split_train_val(r'T:\Working\v05\add_test_feedback')
+    split_train_val(r'G:\data\wr', True)
 
 
 if __name__ == '__main__':
