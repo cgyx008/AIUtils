@@ -70,7 +70,7 @@ end_fmt = '''</annotation>
 '''
 
 
-def txt2xml(root, classes=('person', 'vehicle')):
+def txt2xml(root, classes=('animal', 'person', 'vehicle')):
     """Transform txts in the root into xmls"""
     # Glob txts
     txt_paths = sorted(Path(root).glob('labels/*.txt'))
