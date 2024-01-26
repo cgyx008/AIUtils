@@ -73,15 +73,15 @@ def split_train_val(root, make_copy=False):
             dst_img.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(img_path, dst_img)
 
-        if itx[1].exists():
-            dst_txt = dst_dir / itx[1].relative_to(root)
-            dst_txt.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(itx[1], dst_txt)
+            if itx[1].exists():
+                dst_txt = dst_dir / itx[1].relative_to(root)
+                dst_txt.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(itx[1], dst_txt)
 
-        if itx[2].exists():
-            dst_xml = dst_dir / itx[2].relative_to(root)
-            dst_xml.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(itx[2], dst_xml)
+            if itx[2].exists():
+                dst_xml = dst_dir / itx[2].relative_to(root)
+                dst_xml.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(itx[2], dst_xml)
 
 
 def main():
