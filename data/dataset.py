@@ -44,7 +44,7 @@ def split_train_val(root, make_copy=False):
     img_paths = sorted(root.glob('images/**/*.[jp][pn]g'))
     img_names = list({p.name for p in img_paths})
     assert len(img_paths) == len(img_names)
-    random.shuffle(img_names)
+    random.shuffle(img_paths)
 
     num_val = len(img_paths) // 10
     train_imgs = sorted(img_paths[:-num_val])
@@ -85,7 +85,7 @@ def split_train_val(root, make_copy=False):
 
 
 def main():
-    split_train_val(r'G:\data\wr', True)
+    split_train_val(r'G:\data\wr\v03', True)
 
 
 if __name__ == '__main__':
