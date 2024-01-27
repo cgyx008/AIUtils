@@ -1,4 +1,3 @@
-import datetime
 import os
 from concurrent.futures import ThreadPoolExecutor
 # from functools import partial
@@ -6,6 +5,8 @@ from pathlib import Path
 
 import cv2
 from tqdm import trange, tqdm
+
+from file.mv import get_time_prefix, format_stem
 
 
 def decode_fourcc(cc):
@@ -149,15 +150,8 @@ def rename_video():
     video_paths = sorted(video_dir.glob('*.m[po][4v]'))
     path_map = {}
     for p in tqdm(video_paths):
-        stat = p.stat()
-        ts = datetime.datetime.fromtimestamp(stat.st_mtime)
-        time_prefix = ts.strftime("%Y%m%d_%H%M%S")
-
-        new_stem = ''.join(a if a.isalnum() and a.isascii() else '_'
-                           for a in p.stem)
-        for _ in range(5):
-            new_stem = new_stem.replace('__', '_')
-
+        time_prefix = get_time_prefix(p)
+        new_stem = format_stem(p.stem)
         new_stem = f'{time_prefix}_{new_stem}'
         new_stem = new_stem.strip('_')
 

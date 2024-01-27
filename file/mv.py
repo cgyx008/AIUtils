@@ -1,4 +1,5 @@
-import time
+import datetime
+import re
 from pathlib import Path
 import shutil
 
@@ -104,9 +105,36 @@ def merge_divided_dirs(root):
         shutil.rmtree(p)
 
 
+def format_stem(stem):
+    new_stem = re.sub(r'[^a-zA-Z0-9]', '_', stem)
+    new_stem = re.sub('_{2,}', '_', new_stem)
+    new_stem = new_stem.strip('_')
+    return new_stem
+
+
+def get_time_prefix(filepath):
+    p = Path(filepath)
+    stat = p.stat()
+    ts = datetime.datetime.fromtimestamp(stat.st_mtime)
+    time_prefix = ts.strftime("%Y%m%d_%H%M%S")
+    return time_prefix
+
+
+def format_filename(filepath):
+    p = Path(filepath)
+    new_stem = format_stem(p.stem) or get_time_prefix(filepath)
+    return p.with_stem(new_stem)
+
+
+def format_filenames(dir_path):
+    root = Path(dir_path)
+    paths = sorted(p for p in root.glob('**/*') if p.is_file())
+    for p in tqdm(paths):
+        p.rename(format_filename(p))
+
+
 def main():
-    mv(r'Z:\8TSSD\ganhao\data\fepvd\v05\train',
-       r'G:\data\fepvd\train\train')
+    format_filenames('/home/kemove/8TSSD/ganhao/data/wd/v04/v05/labels_xml')
 
 
 if __name__ == '__main__':
