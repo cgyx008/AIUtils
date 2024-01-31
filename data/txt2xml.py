@@ -76,6 +76,8 @@ def txt2xml(root, classes=('animal', 'person', 'vehicle')):
     txt_paths = sorted(Path(root).glob('labels/*.txt'))
     s = os.sep  # '/' in Linux, '\\' in Windows
     for txt_path in tqdm(txt_paths):
+        if txt_path.stem == 'classes':
+            continue
         # Get xml path
         xml_path = txt_path.with_suffix('.xml')
         xml_path = str(xml_path).replace(f'{s}labels{s}', f'{s}labels_xml{s}')
@@ -101,6 +103,8 @@ def txt2xml(root, classes=('animal', 'person', 'vehicle')):
         img_path = Path(img_path).with_suffix('.jpg')
         if not img_path.exists():
             img_path = img_path.with_suffix('.png')
+        if not img_path.exists():
+            continue
         img = cv2.imread(str(img_path))
         if img is not None:
             h, w = img.shape[:2]
@@ -370,7 +374,7 @@ def create_empty_labels():
 
 
 def main():
-    txt2xml('/home/kemove/8TSSD/ganhao/data/fepvd/v05/working')
+    txt2xml(r'G:\data\wd\working\clean_train_val\fp')
 
 
 if __name__ == '__main__':
