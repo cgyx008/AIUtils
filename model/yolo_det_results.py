@@ -1,9 +1,11 @@
+import shutil
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import cv2
 import numpy as np
 import torch
+from PIL import Image
 from scipy.optimize import linear_sum_assignment
 from torchvision.ops import box_iou
 from tqdm import tqdm
@@ -117,6 +119,11 @@ def _save_fp_and_fn(line, pred_dir, save_dir, num_classes=3):
     fn = np.concatenate(fn, axis=0) if fn else np.array([])
 
     img = cv2.imread(img_path)
+    has_chinese = False
+    if img is None:
+        has_chinese = True
+        with Image.open(img_path) as img:
+            img = np.ascontiguousarray(np.array(img)[..., ::-1])
     h, w = img.shape[:2]
     for box in tp:
         box[[0, 2]] *= w
@@ -137,29 +144,58 @@ def _save_fp_and_fn(line, pred_dir, save_dir, num_classes=3):
         draw_rect_and_put_text(img, box, 'FN', (255, 0, 0), 2)
 
     if fp.size:
-        cv2.imwrite(fr'{save_dir}\FP\{Path(img_path).name}', img)
+        if has_chinese:
+            Image.fromarray(img[..., ::-1]).save(fr'{save_dir}\fp\{Path(img_path).name}')
+        else:
+            cv2.imwrite(fr'{save_dir}\fp\{Path(img_path).name}', img)
     if fn.size:
-        cv2.imwrite(fr'{save_dir}\FN\{Path(img_path).name}', img)
+        if has_chinese:
+            Image.fromarray(img[..., ::-1]).save(fr'{save_dir}\fn\{Path(img_path).name}')
+        else:
+            cv2.imwrite(fr'{save_dir}\fn\{Path(img_path).name}', img)
 
 
 def save_fp_and_fn():
     """Save FP and FN images"""
-    txt = r'Z:\8TSSD\ganhao\data\fepvd\v05\test.txt'
-    with open(txt) as f:
-        lines = f.readlines()
+    txt = r'Z:\8TSSD\ganhao\data\wd\v04\trainval.txt'
+    with open(txt, 'r', encoding='utf-8') as f:
+        lines = f.readlines()[219990:]
 
-    pred_dir = r'Z:\8TSSD\ganhao\projects\ultralytics\runs\detect\fepvd\predict\fepvd_v05_000_epochs_300_test\labels'
-    save_dir = r'T:\Working\v05\clean_test'
+    pred_dir = r'Z:\8TSSD\ganhao\projects\ultralytics\runs\detect\wd\predict\wd_v05_000_trainval\labels'
+    save_dir = r'G:\data\wd\working\clean_train_val'
     pred_dirs = [pred_dir] * len(lines)
     save_dirs = [save_dir] * len(lines)
     (Path(save_dir) / 'fp').mkdir(parents=True, exist_ok=True)
     (Path(save_dir) / 'fn').mkdir(parents=True, exist_ok=True)
-    num_classes_list = [2] * len(lines)
+    num_classes_list = [3] * len(lines)
 
     with ThreadPoolExecutor(8) as executor:
         list(tqdm(executor.map(_save_fp_and_fn,
                                lines, pred_dirs, save_dirs, num_classes_list),
                   total=len(lines)))
+
+
+def cp_fp_fn_labels():
+    save_dir = Path(r'G:\data\wd\working\clean_train_val')
+    fp = sorted(save_dir.glob('fp/*.[jp][pn]g'))
+    fn = sorted(save_dir.glob('fn/*.[jp][pn]g'))
+    stems = {p.stem for p in (fp + fn)}
+
+    txt = r'Z:\8TSSD\ganhao\data\wd\v04\trainval.txt'
+    with open(txt, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
+    label_dir = save_dir / 'labels'
+    label_dir.mkdir(exist_ok=True)
+
+    for line in tqdm(lines):
+        line = line.strip()
+        img_path = line.replace('/home/kemove/218Algo', 'W:')
+        img_path = img_path.replace('/home/kemove', 'Z:')
+        txt_path = img_path.replace('/images/', '/labels/')
+        txt_path = Path(txt_path).with_suffix('.txt')
+        if txt_path.stem in stems:
+            shutil.copy2(txt_path, label_dir)
 
 
 def _rm_duplicate_lines_in_txts(txt_path):
@@ -190,7 +226,8 @@ def main():
     #     r'W:\ganhao\AD\wd\v04\labels\000\5858c175-23d2-11e8-a6a3-ec086b02610b.txt',
     #     r'Z:\2TSSD\ganhao\Projects\ultralytics\runs\detect\predict\wdv04_000_val\labels\5858c175-23d2-11e8-a6a3-ec086b02610b.txt',
     #     num_classes=3)
-    save_fp_and_fn()
+    # save_fp_and_fn()
+    cp_fp_fn_labels()
 
 
 if __name__ == '__main__':
