@@ -2,6 +2,8 @@ import random
 import shutil
 from pathlib import Path
 
+import numpy as np
+from PIL import Image
 from tqdm import tqdm
 
 
@@ -84,8 +86,78 @@ def split_train_val(root, make_copy=False):
                 shutil.copy2(itx[2], dst_xml)
 
 
+def rm_dup_imgs():
+    txt_path = Path('/home/kemove/8TSSD/ganhao/data/wd/v04/trainval.txt')
+    with open(txt_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    save_txt = txt_path.with_stem(f'{txt_path.stem}_ids')
+    for line in tqdm(lines, ascii=True):
+        img_path = line.strip()
+        with Image.open(img_path) as img:
+            w, h = img.size
+            s = np.sum(img)
+        with open(save_txt, 'a', encoding='utf-8') as f:
+            f.write(f'{img_path} {w}_{h}_{s}\n')
+
+
+def cp_dum_imgs():
+    txt_path = Path('/home/kemove/8TSSD/ganhao/data/wd/v04/trainval_ids.txt')
+    with open(txt_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    id2imgs = {}
+    for line in tqdm(lines, ascii=True):
+        img, iden = line.rsplit(maxsplit=1)
+        if iden not in id2imgs:
+            id2imgs[iden] = [img]
+        else:
+            id2imgs[iden].append(img)
+
+    dup_imgs = {k: v for k, v in id2imgs.items() if len(v) != 1}
+    for k, v in tqdm(dup_imgs.items(), ascii=True):
+        with Image.open(v[0]) as img:
+            img = np.array(img)
+        for p in v[1:]:
+            with Image.open(p) as img1:
+                img1 = np.array(img1)
+            if not np.array_equal(img, img1):
+                v.remove(p)
+        dup_imgs[k] = v
+    dup_imgs = {k: v for k, v in dup_imgs.items() if len(v) != 1}
+    with open(txt_path.parent / 'dup_imgs.txt', 'w', encoding='utf-8') as f:
+        for k, v in tqdm(dup_imgs.items()):
+            f.write(k)
+            for p in v:
+                f.write(f' {p}')
+            f.write('\n')
+    with open(txt_path.parent / 'rm_dup_imgs.txt', 'w', encoding='utf-8') as f:
+        for v in tqdm(dup_imgs.values()):
+            for p in v[1:]:
+                f.write(f'{p}\n')
+
+    dup_dir = txt_path.parent / 'dup_imgs'
+    dup_dir.mkdir(exist_ok=True)
+    for k, v in tqdm(dup_imgs.items(), ascii=True):
+        dst = dup_dir / k
+        dst.mkdir(exist_ok=True)
+        for p in v:
+            shutil.copy2(p, dst)
+
+
+def del_dup_imgs():
+    root = Path('/home/kemove/8TSSD/ganhao/data/wd/v04/rm_dup_imgs.txt')
+    with open(root, 'r', encoding='utf-8') as f:
+        dup = set(f.readlines())
+
+    txt = Path('/home/kemove/8TSSD/ganhao/data/wd/v04/val.txt')
+    with open(txt, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    lines = [line for line in lines if line not in dup]
+    with open(txt, 'w', encoding='utf-8') as f:
+        f.writelines(lines)
+
+
 def main():
-    split_train_val(r'G:\data\wr\v03', True)
+    del_dup_imgs()
 
 
 if __name__ == '__main__':
