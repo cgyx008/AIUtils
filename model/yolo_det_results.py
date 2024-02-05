@@ -199,7 +199,7 @@ def cp_fp_fn_labels():
 
 
 def _rm_duplicate_lines_in_txts(txt_path):
-    with open(txt_path) as f:
+    with open(txt_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
     write_lines, unique_lines = [], set()
     for line in lines:
