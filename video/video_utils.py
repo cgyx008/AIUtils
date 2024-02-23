@@ -9,6 +9,9 @@ from pathlib import Path
 import cv2
 from tqdm import trange, tqdm
 
+if __name__ == '__main__':
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from file.mv import get_time_prefix, format_stem
 
 
@@ -47,7 +50,7 @@ def get_cap_and_attr(video_path, verbose=True):
 
 
 def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg',
-                   extract_frames=False):
+                   extract_all_frames=False):
     """
     每{steps}帧提取1帧，并保存在和视频同名的文件夹中。
     Args:
@@ -57,7 +60,7 @@ def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg',
         max_workers (int): 最大线程数。Windows在网络挂载硬盘使用多线程会占用大量内存，
             建议先在本地提帧，再复制到网络硬盘
         ext (str): 图片后缀，默认为jpg
-        extract_frames (bool): 是否提取每一帧到frames文件夹
+        extract_all_frames (bool): 是否提取每一帧到frames文件夹
     """
     # 1. 读取视频和打印属性
     video_path = Path(video_path)
@@ -92,7 +95,7 @@ def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg',
 
         # 图片名：视频名_帧索引.ext
         save_name = f'{video_path.stem}_{str(i).zfill(num_0s)}.{ext}'
-        if extract_frames:
+        if extract_all_frames:
             save_path = frames_dir / save_name
             if executor:
                 executor.submit(cv2.imwrite, str(save_path), frame)  # noqa
@@ -132,7 +135,7 @@ def rewrite_video():
 
 
 def extract_videos_in_a_dir():
-    r = Path(r'T:\Private\Reolink\embedded_feedback\20240109')
+    r = Path(r'U:\Animal\Private\reolink\user_feedback\20240222')
     vs = sorted(r.glob('**/*.[am][pokv][4iv]'))
     # vs = sorted(r.glob('**/*.mp4'))
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
@@ -141,8 +144,8 @@ def extract_videos_in_a_dir():
         if i < 0:
             continue
         print(f'{i + 1} / {len(vs)}')
-        extract_frames(p, steps=0, seconds=0.5, max_workers=8,
-                       extract_frames=True)
+        extract_frames(p, steps=0, seconds=0.5, max_workers=0,
+                       extract_all_frames=False)
 
     # fast about 30%
     # func = partial(extract_frames, steps=0, seconds=2, max_workers=0)
@@ -297,7 +300,7 @@ def copy_new_videos(old_csv, new_csv, dst_dir):
 
 
 def main():
-    get_video_ids()
+    extract_videos_in_a_dir()
 
 
 if __name__ == '__main__':
