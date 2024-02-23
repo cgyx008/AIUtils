@@ -1,4 +1,7 @@
+import datetime
 import os
+import shutil
+import time
 from concurrent.futures import ThreadPoolExecutor
 # from functools import partial
 from pathlib import Path
@@ -14,11 +17,12 @@ def decode_fourcc(cc):
     return "".join([chr((int(cc) >> 8 * i) & 0xFF) for i in range(4)])
 
 
-def get_cap_and_attr(video_path):
+def get_cap_and_attr(video_path, verbose=True):
     """
     读取视频和属性
     Args:
         video_path (str | Path): 视频路径
+        verbose (bool): 是否打印视频基本信息
 
     Returns:
         (cv2.VideoCapture, int, int, int, float, str):
@@ -32,11 +36,12 @@ def get_cap_and_attr(video_path):
     fps = float(cap.get(cv2.CAP_PROP_FPS))
     fourcc = decode_fourcc(cap.get(cv2.CAP_PROP_FOURCC))
 
-    print(f"{video_path}视频属性：")
-    print(f"帧数：{num_frames}")
-    print(f"宽高：{width}， {height}")
-    print(f"帧率：{fps}")
-    print(f"格式：{fourcc}")
+    if verbose:
+        print(f"{video_path}视频属性：")
+        print(f"帧数：{num_frames}")
+        print(f"宽高：{width}， {height}")
+        print(f"帧率：{fps}")
+        print(f"格式：{fourcc}")
 
     return cap, width, height, num_frames, fps, fourcc
 
@@ -145,15 +150,21 @@ def extract_videos_in_a_dir():
     #     list(executor.map(func, vs))
 
 
+def format_video_stem(video_path):
+    video_path = Path(video_path)
+    time_prefix = get_time_prefix(video_path)
+    new_stem = format_stem(video_path.stem)
+    new_stem = f'{time_prefix}_{new_stem}'
+    new_stem = new_stem.strip('_')
+    return new_stem
+
+
 def rename_video():
     video_dir = Path(r'T:\Private\Reolink\embedded_feedback\20240109')
     video_paths = sorted(video_dir.glob('*.m[po][4v]'))
     path_map = {}
     for p in tqdm(video_paths):
-        time_prefix = get_time_prefix(p)
-        new_stem = format_stem(p.stem)
-        new_stem = f'{time_prefix}_{new_stem}'
-        new_stem = new_stem.strip('_')
+        new_stem = format_video_stem(p)
 
         if new_stem in path_map:
             raise RuntimeError(f'Duplicate names: {path_map[new_stem]} and {p}')
@@ -164,10 +175,129 @@ def rename_video():
         p.rename(new_path)
 
 
+def copy_videos():
+    roots = [Path(r'V:\AlgoTestVideos')]
+    dst_dir = Path(r'U:\Animal\Private\reolink\user_feedback')
+
+    video_paths = []
+    for root in roots:
+        video_paths += list(root.glob('**/*.[am][opv][4iv]'))
+    video_paths.sort()
+
+    csv_path = dst_dir / 'video_copy_info_20240221.csv'
+    with open(csv_path, 'a', encoding='utf-8') as f:
+        f.write('Source,Destination,VideoID (mtime size)\n')
+
+    vts = {}
+    for video_path in tqdm(video_paths):
+        stat = video_path.stat()
+        ts = datetime.datetime.fromtimestamp(stat.st_mtime)
+        video_id = f"{ts.strftime('%Y-%m-%d_%H-%M-%S.%f')} {stat.st_size}"
+        if video_id not in vts:
+            new_stem = format_video_stem(video_path)
+            new_name = video_path.with_stem(new_stem).name
+            dst = dst_dir / str(ts.year) / str(ts.month).zfill(2) / new_name
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            vts[video_id] = [(video_path, dst)]
+
+        else:
+            dst = vts[video_id][0][1]
+            vts[video_id].append((video_path, dst))
+
+        with open(csv_path, 'a', encoding='utf-8') as f:
+            f.write(f'{video_path.as_posix()},{dst.as_posix()},{video_id}\n')
+
+
+def gen_video_id(video_path):
+    """
+    Generate video id from the video content.
+    Args:
+        video_path (str | Path): video path
+
+    Returns:
+        (str): f'{frame_w}_{frame_h}_{num_frames}_{fps}_{size}_{sum_frame_0}'
+    """
+    size = Path(video_path).stat().st_size
+    cap, width, height, num_frames, fps, _ = get_cap_and_attr(video_path, False)
+    ret, frame = cap.read()
+    sum_frame_0 = frame.sum() if ret else 0
+    return f'{width}_{height}_{num_frames}_{fps}_{size}_{sum_frame_0}'
+
+
+def get_video_ids():
+    video_root = Path(r'U:\Animal\Private\reolink\user_feedback')
+    video_paths = sorted(video_root.glob('20240222/*.[am][opv][4iv]'))
+
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    csv_path = video_root / f'video_ids_{ts}.csv'
+
+    for video_path in tqdm(video_paths):
+        video_id = gen_video_id(video_path)
+        with open(csv_path, 'a', encoding='utf-8') as f:
+            f.write(f'{video_path},{video_id}\n')
+
+
+def get_id2video(csv_path):
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    id2video = {}
+    for line in tqdm(lines):
+        video_path, video_id = line.strip().rsplit(',', 1)
+        if video_id not in id2video:
+            id2video[video_id] = [video_path]
+        else:
+            id2video[video_id].append(video_path)
+    return id2video
+
+
+def copy_new_videos(old_csv, new_csv, dst_dir):
+    """
+    csv format:
+    video_path, f'{frame_w}_{frame_h}_{num_frames}_{fps}_{size}_{sum_frame_0}
+
+    Args:
+        old_csv (str|Path): csv file containing existing videos
+        new_csv (str|Path): csv file containing existing and new videos
+        dst_dir (str|Path): destination directory for saving new videos
+
+    Examples:
+        >>> root = 'U:/Animal/Private/reolink/user_feedback'
+        >>> copy_new_videos(
+        >>>    f'{root}/video_ids_20240222_172648.csv',
+        >>>    f'{root}/video_ids_20240222_181440.csv',
+        >>>    f'{root}/20240222'
+        >>> )
+    """
+
+    dst_dir = Path(dst_dir)
+    dst_dir.mkdir(parents=True, exist_ok=True)
+
+    id2video0 = get_id2video(old_csv)
+    id2video1 = get_id2video(new_csv)
+    new_videos = {}
+    for k, v in id2video1.items():
+        if k in id2video0:
+            id2video0[k].extend(v)
+        else:
+            new_videos[k] = v
+
+    name2video = {}
+    for v in tqdm(new_videos.values()):
+        names = [f'{format_video_stem(p)}{Path(p).suffix}' for p in v]
+        name = sorted(names)[0]
+        if name not in name2video:
+            name2video[name] = v
+        else:
+            name2video[name].extend(v)
+            print(name2video[name])
+    assert len(new_videos) == len(name2video)
+
+    for k, v in tqdm(name2video.items()):
+        shutil.copy2(v[0], dst_dir / k)
+
+
 def main():
-    # extract_frames(r'D:\Projects\AD_pytools\AWS\Docker_wr_dev\test_crop\1440p_3_deer.mp4')
-    # rename_video()
-    extract_videos_in_a_dir()
+    get_video_ids()
 
 
 if __name__ == '__main__':
