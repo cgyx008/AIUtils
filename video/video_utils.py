@@ -75,6 +75,9 @@ def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg',
     print(f'帧保存在文件夹：{frames_dir}')
     print(f'图片保存在文件夹：{images_dir}')
 
+    if not cap.isOpened() or num_frames <= 0:
+        return
+
     # 如果i整除interval不等于0，跳过。每interval帧保存1帧。
     interval = steps or int(fps * seconds)
     if interval == 0:
