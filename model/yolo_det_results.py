@@ -10,6 +10,9 @@ from scipy.optimize import linear_sum_assignment
 from torchvision.ops import box_iou
 from tqdm import tqdm
 
+if __name__ == '__main__':
+    import sys
+    sys.path.insert(0, Path(__file__).parents[1].as_posix())
 from image.image_utils import draw_rect_and_put_text
 
 
@@ -155,21 +158,31 @@ def _save_fp_and_fn(line, pred_dir, save_dir, num_classes=3):
             cv2.imwrite(fr'{save_dir}\fn\{Path(img_path).name}', img)
 
 
-def save_fp_and_fn():
-    """Save FP and FN images"""
-    txt = r'Z:\8TSSD\ganhao\data\wd\v04\trainval.txt'
-    with open(txt, 'r', encoding='utf-8') as f:
-        lines = f.readlines()[219990:]
+def save_fp_and_fn(txt, pred_dir, save_dir, num_workers=8):
+    """
+    Save FP and FN images
+    Args:
+        txt (str): source txt file
+        pred_dir (str): yolo labels directory
+        save_dir (str): save directory
+        num_workers (int): number of workers
 
-    pred_dir = r'Z:\8TSSD\ganhao\projects\ultralytics\runs\detect\wd\predict\wd_v05_000_trainval\labels'
-    save_dir = r'G:\data\wd\working\clean_train_val'
+    Examples:
+        >>> txt = 'Z:/8TSSD/ganhao/data/wd/v04/trainval.txt'
+        >>> pred_dir = 'Z:/8TSSD/ganhao/projects/ultralytics/runs/detect/wd/predict/wd_v05_000_trainval/labels'
+        >>> save_dir = 'G:/data/wd/working/clean_train_val'
+        >>> save_fp_and_fn(txt, pred_dir, save_dir)
+    """
+    with open(txt, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
     pred_dirs = [pred_dir] * len(lines)
     save_dirs = [save_dir] * len(lines)
     (Path(save_dir) / 'fp').mkdir(parents=True, exist_ok=True)
     (Path(save_dir) / 'fn').mkdir(parents=True, exist_ok=True)
     num_classes_list = [3] * len(lines)
 
-    with ThreadPoolExecutor(8) as executor:
+    with ThreadPoolExecutor(num_workers) as executor:
         list(tqdm(executor.map(_save_fp_and_fn,
                                lines, pred_dirs, save_dirs, num_classes_list),
                   total=len(lines)))
@@ -222,12 +235,12 @@ def rm_duplicate_lines_in_txts():
 
 
 def main():
-    # cmp_label_txt_and_pred_txt(
-    #     r'W:\ganhao\AD\wd\v04\labels\000\5858c175-23d2-11e8-a6a3-ec086b02610b.txt',
-    #     r'Z:\2TSSD\ganhao\Projects\ultralytics\runs\detect\predict\wdv04_000_val\labels\5858c175-23d2-11e8-a6a3-ec086b02610b.txt',
-    #     num_classes=3)
-    # save_fp_and_fn()
-    cp_fp_fn_labels()
+    save_fp_and_fn(
+        'Z:/8TSSD/ganhao/data/wd/v04/trainval.txt',
+        'Z:/8TSSD/ganhao/projects/ultralytics/runs/detect/wd/predict/wd_v05_002_tune_000_trainval/labels',
+        'G:/data/wd/working/clean_train_val_v05_002',
+        1
+    )
 
 
 if __name__ == '__main__':
