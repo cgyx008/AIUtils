@@ -29,10 +29,21 @@ def get_preds(txt_dir):
     return preds
 
 
-def save_fp():
-    img_dir = Path(r'G:\data\wr\v03\v03_15\test')
-    txt_dir = r'Z:\8TSSD\ganhao\projects\ultralytics\runs\classify\wr\predict\wr_v03_15_001_split_test_test\labels'
-    fp_dir = Path(r'G:\data\wr\v03\v03_15\working\wr_v03_15_001_test')
+def save_fp(img_dir, txt_dir, fp_dir):
+    """
+    保存YOLO误分图片。
+    Args:
+        img_dir (str | Path): 训练集或测试集文件夹
+        txt_dir (str | Path): 预测的txt标签文件夹
+        fp_dir (str | Path): 保存误分图片的文件夹
+
+    Examples:
+        >>> img_dir = 'G:/data/wr/v03/v03_15/test'
+        >>> txt_dir = 'Z:/8TSSD/ganhao/projects/ultralytics/runs/classify/wr/predict/wr_v03_15_001_split_test_test/labels'
+        >>> fp_dir = 'G:/data/wr/v03/v03_15/working/wr_v03_15_001_test'
+        >>> save_fp(img_dir, txt_dir, fp_dir)
+    """
+    img_dir, txt_dir, fp_dir = Path(img_dir), Path(txt_dir), Path(fp_dir)
 
     labels = get_labels(img_dir)
     preds = get_preds(txt_dir)
@@ -50,7 +61,11 @@ def save_fp():
 
 
 def main():
-    save_fp()
+    save_fp(
+        'G:/data/wr/v03/v03_15/test',
+        'Z:/8TSSD/ganhao/projects/ultralytics/runs/classify/wr/predict/wr_v03_15_005_tune_000_scale_0_test/labels',
+        'G:/data/wr/v03/v03_15/working/wr_v03_15_005_tune_000_scale_0_test'
+    )
 
 
 if __name__ == '__main__':
