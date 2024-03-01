@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
+from data.dataset import get_img_txt_xml
 
 r"""VOC format:
 <annotation>
@@ -357,14 +358,13 @@ def xmls2txts(root, classes=('animal', 'person', 'vehicle')):
                   total=len(xml_paths)))
 
 
-def create_empty_labels():
-    cwd = Path(r'U:\Animal\Private\218_animal\turkey\turkey-day-2')
-    img_paths = sorted(cwd.glob('images/**/*.[jp][pn]g'))
+def create_empty_labels(root):
+    root = Path(root)
+    img_paths = sorted(root.glob('images/**/*.[jp][pn]g'))
     for img_path in tqdm(img_paths):
-        txt_path = str(img_path).replace('images', 'labels')
-        xml_path = str(img_path).replace('images', 'labels_xml')
-        txt_path = Path(txt_path).with_suffix('.txt')
-        xml_path = Path(xml_path).with_suffix('.xml')
+        txt_path, xml_path = get_img_txt_xml(img_path)[1:]
+        txt_path.parent.mkdir(parents=True, exist_ok=True)
+        xml_path.parent.mkdir(parents=True, exist_ok=True)
 
         if not txt_path.exists():
             with open(txt_path, 'w', encoding='utf-8') as f:
@@ -374,7 +374,8 @@ def create_empty_labels():
 
 
 def main():
-    txt2xml(r'G:\data\wd\working\clean_train_val\fp')
+    create_empty_labels(
+        r'G:\data\wd\working\v05\reolink\user_feedback\20240222_background_fp')
 
 
 if __name__ == '__main__':
