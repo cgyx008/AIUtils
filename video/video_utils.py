@@ -138,7 +138,7 @@ def rewrite_video():
 
 
 def extract_videos_in_a_dir():
-    r = Path(r'U:\Animal\Private\reolink\user_feedback\20240222')
+    r = Path(r'T:\Private\Reolink\test_feedback\20240306')
     vs = sorted(r.glob('**/*.[am][pokv][4iv]'))
     # vs = sorted(r.glob('**/*.mp4'))
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
@@ -156,21 +156,21 @@ def extract_videos_in_a_dir():
     #     list(executor.map(func, vs))
 
 
-def format_video_stem(video_path):
+def format_video_stem(video_path, data_prefix='', use_time_prefix=True):
     video_path = Path(video_path)
-    time_prefix = get_time_prefix(video_path)
-    new_stem = format_stem(video_path.stem)
-    new_stem = f'{time_prefix}_{new_stem}'
+    time_prefix = get_time_prefix(video_path) if use_time_prefix else ''
+    new_stem = format_stem(f'{data_prefix}_{time_prefix}_{video_path.stem}')
     new_stem = new_stem.strip('_')
     return new_stem
 
 
 def rename_video():
-    video_dir = Path(r'T:\Private\Reolink\embedded_feedback\20240109')
+    data_prefix = ''
+    video_dir = Path(r'T:\Private\Reolink\test_feedback\20240306')
     video_paths = sorted(video_dir.glob('*.m[po][4v]'))
     path_map = {}
     for p in tqdm(video_paths):
-        new_stem = format_video_stem(p)
+        new_stem = format_video_stem(p, data_prefix, False)
 
         if new_stem in path_map:
             raise RuntimeError(f'Duplicate names: {path_map[new_stem]} and {p}')
