@@ -7,6 +7,9 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
+if __name__ == '__main__':
+    import sys
+    sys.path.insert(0, Path(__file__).parents[1].as_posix())
 from data.dataset import get_img_txt_xml
 
 
@@ -187,11 +190,30 @@ def verify_img(num_threads=8):
         list(tqdm(executor.map(_verify_img, img_paths), total=len(img_paths)))
 
 
+def gen_img_id(img_path):
+    img_path = str(img_path)
+    img = cv2.imread(img_path)
+    if img is None:
+        with Image.open(img_path) as img:
+            img = np.array(img)
+    h, w = img.shape[:2]
+    s, v = img.sum(), img.var()
+    return f'{w}_{h}_{s}_{v}'
+
+
+def get_img_txt_ids(txt_path):
+    ids_txt = Path(txt_path).with_stem(f'{Path(txt_path).stem}_ids')
+    with open(txt_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    img_paths = [line.strip() for line in lines]
+    for img_path in tqdm(img_paths):
+        img_id = gen_img_id(img_path)
+        with open(ids_txt, 'a', encoding='utf-8') as f:
+            f.write(f'{img_path} {img_id}\n')
+
+
 def main():
-    vis_yolo_box(
-        '/home/kemove/8TSSD/ganhao/data/fepvd/v05/working/20240123/predict/fepvd_v05_009_add_background_fp_0123_pretrain_train_008',
-        cls_bias=1
-    )
+    get_img_txt_ids('/home/kemove/8TSSD/ganhao/data/wd/v04/trainval.txt')
 
 
 if __name__ == '__main__':
