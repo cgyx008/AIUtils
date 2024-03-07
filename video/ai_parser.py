@@ -6,6 +6,9 @@ from pathlib import Path
 import cv2
 from tqdm import tqdm
 
+if __name__ == '__main__':
+    import sys
+    sys.path.insert(0, Path(__file__).resolve().parents[1].as_posix())
 from image.image_utils import draw_rect_and_put_text
 from video.video_utils import get_cap_and_attr
 
@@ -55,7 +58,7 @@ def get_action_results(video_path):
     return read_txt(action_txt)
 
 
-def read_ai_parser_txts(video_path):
+def parse_video(video_path, num_workers=8):
     video_path = Path(video_path)
 
     model_results = get_model_results(video_path)
@@ -69,7 +72,7 @@ def read_ai_parser_txts(video_path):
     action_dir.mkdir(parents=True, exist_ok=True)
 
     colors = {'ad': (255, 0, 0), 'pd': (0, 255, 0), 'vd': (0, 0, 255)}
-    executor = ThreadPoolExecutor(8)
+    executor = ThreadPoolExecutor(num_workers) if num_workers else None
     for i, (mo, ao) in enumerate(zip(tqdm(model_results), action_results)):
         ret, model_frame = cap.read()
         action_frame = model_frame.copy()
@@ -100,15 +103,28 @@ def read_ai_parser_txts(video_path):
         img = cv2.hconcat([model_frame, action_frame])
         save_name = f'{video_path.stem}_{str(i).zfill(num_0s)}.jpg'
         save_path = save_dir / save_name
-        executor.submit(cv2.imwrite, str(save_path), img)  # noqa
+        if executor is not None:
+            executor.submit(cv2.imwrite, str(save_path), img)  # noqa
+        else:
+            cv2.imwrite(save_path.as_posix(), img)
         if action:
             save_path = action_dir / save_name
-            executor.submit(cv2.imwrite, str(save_path), img)  # noqa
+            if executor is not None:
+                executor.submit(cv2.imwrite, str(save_path), img)  # noqa
+            else:
+                cv2.imwrite(save_path.as_posix(), img)
+
+
+def parse_videos(video_dir, num_workers=8):
+    video_paths = sorted(Path(video_dir).glob('*.mp4'))
+    for video_path in tqdm(video_paths):
+        parse_video(video_path, num_workers)
 
 
 def main():
-    read_ai_parser_txts(
-        r'G:\Data\FEPD\Reolink\embedded_feedback\20240111\RecM05_20240110_173013_173513_0_8F28D1804_BF15318.mp4'
+    parse_videos(
+        r'G:\data\fepvd\private\reolink\test_feedback\20240306',
+        0
     )
 
 
