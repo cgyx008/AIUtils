@@ -137,8 +137,8 @@ def rewrite_video():
     vw.release()
 
 
-def extract_videos_in_a_dir():
-    r = Path(r'T:\Private\Reolink\test_feedback\20240306')
+def extract_videos():
+    r = Path(r'T:\Private\Reolink\test_feedback\20240308')
     vs = sorted(r.glob('**/*.[am][pokv][4iv]'))
     # vs = sorted(r.glob('**/*.mp4'))
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
@@ -147,7 +147,7 @@ def extract_videos_in_a_dir():
         if i < 0:
             continue
         print(f'{i + 1} / {len(vs)}')
-        extract_frames(p, steps=0, seconds=0.5, max_workers=0,
+        extract_frames(p, steps=0, seconds=5, max_workers=0,
                        extract_all_frames=False)
 
     # fast about 30%
@@ -164,13 +164,14 @@ def format_video_stem(video_path, data_prefix='', use_time_prefix=True):
     return new_stem
 
 
-def rename_video():
-    data_prefix = ''
-    video_dir = Path(r'T:\Private\Reolink\test_feedback\20240306')
+def rename_videos():
+    data_prefix = 'reolink_test'
+    use_time_prefix = False
+    video_dir = Path(r'T:\Private\Reolink\test_feedback\20240308')
     video_paths = sorted(video_dir.glob('*.m[po][4v]'))
     path_map = {}
     for p in tqdm(video_paths):
-        new_stem = format_video_stem(p, data_prefix, False)
+        new_stem = format_video_stem(p, data_prefix, use_time_prefix)
 
         if new_stem in path_map:
             raise RuntimeError(f'Duplicate names: {path_map[new_stem]} and {p}')
@@ -303,7 +304,7 @@ def copy_new_videos(old_csv, new_csv, dst_dir):
 
 
 def main():
-    extract_videos_in_a_dir()
+    extract_videos()
 
 
 if __name__ == '__main__':
