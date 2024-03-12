@@ -1,3 +1,4 @@
+import json
 import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -212,8 +213,32 @@ def get_img_txt_ids(txt_path):
             f.write(f'{img_path} {img_id}\n')
 
 
+def write_down_dup_imgs(txt_path):
+    """
+    Write down duplicate images according to the image id.
+    Args:
+        txt_path (str | Path): image id txt
+    """
+    txt_path = Path(txt_path)
+    with open(txt_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
+    id2img = {}
+    for line in tqdm(lines):
+        img_path, img_id = line.strip().rsplit(' ', 1)
+        if img_id not in id2img:
+            id2img[img_id] = [img_path]
+        else:
+            id2img[img_id].append(img_path)
+
+    id2dupimg = {k: v for k, v in id2img.items() if len(v) > 1}
+    dup_json = txt_path.with_name(f'{txt_path.stem}_dup_imgs.json')
+    with open(dup_json, 'w', encoding='utf-8') as f:
+        json.dump(id2dupimg, f, indent=4)
+
+
 def main():
-    get_img_txt_ids('/home/kemove/8TSSD/ganhao/data/wd/v04/trainval.txt')
+    write_down_dup_imgs('/home/kemove/8TSSD/ganhao/data/wd/v04/trainval_ids.txt')
 
 
 if __name__ == '__main__':
