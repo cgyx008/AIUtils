@@ -133,8 +133,18 @@ def format_filenames(dir_path):
         p.rename(format_filename(p))
 
 
+def mv_pred_label_dir():
+    """
+    Move predicted label directory to the same level as images directory
+    """
+    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240222')
+    label_dirs = sorted(root.glob('*/predict/*/labels'))
+    for label_dir in tqdm(label_dirs):
+        shutil.move(label_dir, label_dir.parents[2])
+
+
 def main():
-    format_filenames('/home/kemove/8TSSD/ganhao/data/wd/v04/v05/labels_xml')
+    mv_pred_label_dir()
 
 
 if __name__ == '__main__':
