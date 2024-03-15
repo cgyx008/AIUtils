@@ -156,8 +156,40 @@ def del_dup_imgs():
         f.writelines(lines)
 
 
+def split_tasks():
+    """
+    Split and assign clean tasks.
+    """
+    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240222')
+    img_paths = sorted(root.glob('*/images/*.jpg'))
+
+    num_half = len(img_paths) // 2
+    split_path = img_paths[num_half]
+    split_dir_imgs = sorted(split_path.parent.glob('*.jpg'))
+    num_contained_imgs = split_dir_imgs.index(split_path)
+    num_split_dir_imgs = len(list(split_path.parent.glob('*.jpg')))
+    if_contain = num_contained_imgs / num_split_dir_imgs > 0.5
+
+    contain_dirs = sorted({str(p.parents[1]) for p in img_paths[:num_half]})
+    remain_dirs = sorted({str(p.parents[1]) for p in img_paths[num_half:]})
+    if if_contain:
+        remain_dirs.remove(str(split_path.parents[1]))
+    else:
+        contain_dirs.remove(str(split_path.parents[1]))
+
+    contain_dir = root / '0'
+    contain_dir.mkdir(exist_ok=True)
+    for d in tqdm(contain_dirs):
+        shutil.move(d, contain_dir)
+
+    remain_dir = root / '1'
+    remain_dir.mkdir(exist_ok=True)
+    for d in tqdm(remain_dirs):
+        shutil.move(d, remain_dir)
+
+
 def main():
-    del_dup_imgs()
+    split_train_val('/home/kemove/8TSSD/ganhao/data/fepvd/v006/reolink/test/20240308')
 
 
 if __name__ == '__main__':
