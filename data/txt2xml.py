@@ -373,9 +373,18 @@ def create_empty_labels(root):
             write_xml(img_path, xml_path)
 
 
+def write_down_difficult_imgs():
+    root = Path(r'G:\data\wd\working\clean_train_val_v05_002')
+    xmls = sorted(root.glob('labels_xml/*.xml'))
+    difficult_xmls = [p for p in tqdm(xmls) if read_xml(p)['has_difficult']]
+    with open(root / 'difficult_xmls.txt', 'w', encoding='utf-8') as f:
+        for difficult_xml in difficult_xmls:
+            f.write(f'{difficult_xml}\n')
+
+
 def main():
-    create_empty_labels(
-        r'G:\data\wd\working\v05\reolink\user_feedback\20240222_background_fp')
+    xmls2txts(r'T:\Working\v05\add_test_feedback_20240308\20240308',
+              ('person', 'vehicle'))
 
 
 if __name__ == '__main__':
