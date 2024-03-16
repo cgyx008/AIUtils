@@ -1,4 +1,5 @@
 import datetime
+import os
 import re
 from pathlib import Path
 import shutil
@@ -137,14 +138,22 @@ def mv_pred_label_dir():
     """
     Move predicted label directory to the same level as images directory
     """
-    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240222')
-    label_dirs = sorted(root.glob('*/predict/*/labels'))
+    root = Path(r'T:\Private\Reolink\test_feedback\20240308')
+    label_dirs = sorted(root.glob('**/predict/**/labels_xml'))
     for label_dir in tqdm(label_dirs):
-        shutil.move(label_dir, label_dir.parents[2])
+        shutil.move(label_dir, label_dir.parents[1])
+
+
+def rm_empty_dir():
+    root = Path(r'T:\Private\Reolink\test_feedback\20240308')
+    dirs = sorted(p for p in root.glob('**/predict') if p.is_dir())
+    empty_dirs = [p for p in tqdm(dirs) if not os.listdir(p)]
+    for d in tqdm(empty_dirs):
+        shutil.rmtree(d)
 
 
 def main():
-    mv_pred_label_dir()
+    rm_empty_dir()
 
 
 if __name__ == '__main__':
