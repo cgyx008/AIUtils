@@ -188,8 +188,26 @@ def split_tasks():
         shutil.move(d, remain_dir)
 
 
+def update_labels_from_a_dir():
+    src_dir = Path(r'Z:\8TSSD\ganhao\data\fepvd\v006')
+    dst_dir = Path(r'T:\Private\Reolink\test_feedback')
+
+    src_paths = sorted(src_dir.glob('**/labels_xml/*.xml'))
+    src_stem2path = {p.stem: p for p in src_paths}
+    dst_paths = sorted(dst_dir.glob('2024*/**/labels_xml/*.xml'))
+
+    missings = [p for p in dst_paths if p.stem not in src_stem2path]
+    if missings:
+        print(missings)
+        raise FileNotFoundError('Files not found!')
+
+    for dst in tqdm(dst_paths):
+        src = src_stem2path[dst.stem]
+        shutil.copy2(src, dst)
+
+
 def main():
-    split_train_val('/home/kemove/8TSSD/ganhao/data/fepvd/v006/reolink/test/20240308')
+    update_labels_from_a_dir()
 
 
 if __name__ == '__main__':
