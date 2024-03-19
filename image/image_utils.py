@@ -145,14 +145,20 @@ def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
         cv2.imwrite(str(save_path), img)
 
 
-def vis_yolo_box(cwd, cls_bias=0, num_threads=8):
+def vis_yolo_box(cwd, save_dir=None, cls_bias=0, num_threads=8):
     cwd = Path(cwd)
     img_paths = sorted(cwd.glob('**/images/**/*.[jp][pn]g'))
     txt_paths = [get_img_txt_xml(p)[1] for p in tqdm(img_paths)]
-    save_paths = [
-        Path(str(p).replace('images', 'images_vis_labels'))
-        for p in img_paths
-    ]
+
+    if save_dir is None:
+        save_paths = [
+            Path(str(p).replace('images', 'images_vis_labels'))
+            for p in img_paths
+        ]
+    else:
+        save_dir = Path(save_dir)
+        save_paths = [save_dir / p.relative_to(cwd) for p in img_paths]
+
     # Create parent directories
     save_parents = sorted(list({str(p.parent) for p in save_paths}))
     for save_parent in tqdm(save_parents):
@@ -238,7 +244,10 @@ def write_down_dup_imgs(txt_path):
 
 
 def main():
-    write_down_dup_imgs('/home/kemove/8TSSD/ganhao/data/wd/v04/trainval_ids.txt')
+    vis_yolo_box(
+        r'U:\Animal\Working\Detection\v05\reolink\user_feedback\20240129_2th_latest_10w',
+        r'G:\data\wd\working\v05\reolink\user_feedback\20240129_2th_latest_10w',
+    )
 
 
 if __name__ == '__main__':
