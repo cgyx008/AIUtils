@@ -6,6 +6,11 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
+if __name__ == '__main__':
+    import sys
+    sys.path.insert(0, Path(__file__).parents[1].as_posix())
+from file.mv import create_parent_dirs
+
 
 def change_path(path, src_dir='images', dst_dir='labels', dst_suf='.txt'):
     parts = Path(path).parts
@@ -206,8 +211,38 @@ def update_labels_from_a_dir():
         shutil.copy2(src, dst)
 
 
+def cp_dataset(txt_path, dst_dir):
+    """Copy data from txt to dst_dir
+    Args:
+        txt_path (str | Path): path to train.txt or val.txt
+        dst_dir (str | Path): path to destination folder
+    """
+    with open(txt_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
+    src_img_paths = [Path(line.strip()) for line in tqdm(lines)]
+    src_txt_paths = [get_img_txt_xml(p)[1] for p in tqdm(src_img_paths)]
+    src_paths = src_img_paths + src_txt_paths
+
+    dst_img_paths = [
+        dst_dir / p.relative_to(Path(*p.parts[:p.parts.index('images')]))
+        for p in tqdm(src_img_paths)
+    ]
+    dst_txt_paths = [get_img_txt_xml(p)[1] for p in tqdm(dst_img_paths)]
+    dst_paths = dst_img_paths + dst_txt_paths
+
+    # Create parent directories
+    create_parent_dirs(dst_paths)
+
+    for src, dst in zip(tqdm(src_paths), dst_paths):
+        shutil.copy2(src, dst)
+
+
 def main():
-    update_labels_from_a_dir()
+    cp_dataset(
+        '/home/kemove/8TSSD/ganhao/data/wd/v04/train.txt',
+        '/home/kemove/28Server/animal/Animal/Train/Detection/v005',
+    )
 
 
 if __name__ == '__main__':

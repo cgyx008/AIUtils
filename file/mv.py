@@ -152,6 +152,13 @@ def rm_empty_dir():
         shutil.rmtree(d)
 
 
+def create_parent_dirs(paths):
+    parent_dirs = sorted({Path(p).parent.as_posix() for p in paths})
+    os.umask(0)
+    for parent_dir in tqdm(parent_dirs):
+        Path(parent_dir).mkdir(parents=True, exist_ok=True)
+
+
 def main():
     rm_empty_dir()
 
