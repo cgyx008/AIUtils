@@ -5,7 +5,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
 
 if __name__ == '__main__':
@@ -185,16 +185,19 @@ def vis_mmap(mmap_path):
         cv2.imwrite(str(img_path), img)
 
 
-def verify_img(num_threads=8):
-    img_dir = Path(r'U:\Animal\Public\kaggle\cats_and_dogs')
+def verify_imgs(num_threads=8):
+    img_dir = Path(r'F:\data\AD\nz_trailcams\images')
     img_paths = sorted(img_dir.glob('**/*.[jp][pn][g]'))
 
-    def _verify_img(img_path):
-        with Image.open(img_path) as im:
-            im.verify()
+    def verify_img(img_path):
+        try:
+            with Image.open(img_path) as im:
+                im.verify()
+        except UnidentifiedImageError as e:
+            print(e, img_path)
 
     with ThreadPoolExecutor(num_threads) as executor:
-        list(tqdm(executor.map(_verify_img, img_paths), total=len(img_paths)))
+        list(tqdm(executor.map(verify_img, img_paths), total=len(img_paths)))
 
 
 def gen_img_id(img_path):
@@ -244,10 +247,7 @@ def write_down_dup_imgs(txt_path):
 
 
 def main():
-    vis_yolo_box(
-        r'U:\Animal\Working\Detection\v05\reolink\user_feedback\20240129_2th_latest_10w',
-        r'G:\data\wd\working\v05\reolink\user_feedback\20240129_2th_latest_10w',
-    )
+    verify_imgs()
 
 
 if __name__ == '__main__':
