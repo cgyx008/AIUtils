@@ -15,7 +15,7 @@ def load_model(pt_path):
         (torch.nn.Module): model
     """
     pt = torch.load(pt_path, map_location='cpu')
-    pt_model = pt['model']
+    pt_model = pt['model'] if isinstance(pt, dict) and 'model' in pt else pt
     return pt_model
 
 
@@ -43,7 +43,7 @@ def pt2onnx(pt_path, onnx_path='', simplify=True, **kwargs):
 
 
 def main():
-    pt2onnx('E:/data/Projects/mae/mae_pretrain_vit_base.pth')
+    pt2onnx(r'Z:\8TSSD\ganhao\projects\ConvNeXt-V2\weights\convnextv2_atto.pt')
 
 
 if __name__ == '__main__':
