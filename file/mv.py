@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 import shutil
 
-from tqdm import tqdm, trange
+from tqdm import tqdm
 
 
 def mv(src, dst, glob_patten='**/*', exclude_dir='/None/'):
