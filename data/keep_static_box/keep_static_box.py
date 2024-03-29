@@ -10,26 +10,16 @@ from scipy.optimize import linear_sum_assignment
 from torchvision.ops import box_iou
 from tqdm import tqdm
 
+from data.txt2xml import read_xml
+
 
 def get_xml_labels(xml_path):
-    # Get root
-    tree = ET.parse(xml_path)
-    root = tree.getroot()
-
-    # Get object
+    label = read_xml(xml_path)
     cat2boxes = defaultdict(list)
-    objs = root.findall('object')
-    for obj in objs:
-        # Get class_id
-        class_name = obj.find('name').text.lower()
-        # Get box
-        xmin = int(obj.find('bndbox').find('xmin').text)
-        ymin = int(obj.find('bndbox').find('ymin').text)
-        xmax = int(obj.find('bndbox').find('xmax').text)
-        ymax = int(obj.find('bndbox').find('ymax').text)
-        cat2boxes[class_name].append([xmin, ymin, xmax, ymax])
+    for obj in label['objects']:
+        cat2boxes[obj['name']].append(obj['pxyxy'])
 
-    return cat2boxes, root
+    return cat2boxes, label['root']
 
 
 def write_xml(xml_path, root_orig, labels):

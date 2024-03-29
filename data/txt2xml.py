@@ -137,37 +137,19 @@ def xml2txt(xml_path, txt_path=None, classes=('animal', 'person', 'vehicle')):
     # Initialize classes
     classes = {c: i for i, c in enumerate(classes)}
 
-    # Get root
-    tree = ET.parse(xml_path)
-    root = tree.getroot()
-
-    # Get image width and height
-    width = int(root.find('size').find('width').text)
-    height = int(root.find('size').find('height').text)
-
-    # Get object
-    objs = root.findall('object')
+    label = read_xml(xml_path)
     txt_lines = []
-    for obj in objs:
-        if obj.find('difficult').text == '1':
-            txt_lines.clear()
-            break
-        # Get class_id
-        name = obj.find('name').text.lower()
-        class_id = classes.get(name, -1)
-        if class_id == -1:
-            print(f'Error class name "{name}" in {xml_path}, skip it.')
-            continue
-        # Get box
-        xmin = int(obj.find('bndbox').find('xmin').text)
-        ymin = int(obj.find('bndbox').find('ymin').text)
-        xmax = int(obj.find('bndbox').find('xmax').text)
-        ymax = int(obj.find('bndbox').find('ymax').text)
-        w, h = xmax - xmin, ymax - ymin
-        xc, yc = xmin + w/2, ymin + h/2
-        # Normalize
-        xc, yc, w, h = xc / width, yc / height, w / width, h / height
-        txt_lines.append(f'{class_id} {xc} {yc} {w} {h}\n')
+    if not label['has_difficult']:
+        for obj in label['objects']:
+            # Get class_id
+            name = obj['name']
+            class_id = classes.get(name, -1)
+            if class_id == -1:
+                print(f'Error class name "{name}" in {xml_path}, skip it.')
+                continue
+
+            nxc, nyc, nw, nh = obj['nxywh']
+            txt_lines.append(f'{class_id} {nxc} {nyc} {nw} {nh}\n')
 
     # Write in txt
     with open(txt_path, 'w', encoding='utf-8') as f:
@@ -179,6 +161,7 @@ def read_xml(xml_path):
     # Get root
     tree = ET.parse(xml_path)
     root = tree.getroot()
+    label['root'] = root
 
     # Get image width and height
     width = int(root.find('size').find('width').text)
@@ -195,23 +178,46 @@ def read_xml(xml_path):
         # Get class_id
         name = obj.find('name').text.lower()
         class_names.add(name)
+
         # Get box
-        xmin = int(obj.find('bndbox').find('xmin').text)
-        ymin = int(obj.find('bndbox').find('ymin').text)
-        xmax = int(obj.find('bndbox').find('xmax').text)
-        ymax = int(obj.find('bndbox').find('ymax').text)
+        # Pixel x1y1x2y2
+        pxmin = int(obj.find('bndbox').find('xmin').text)
+        pymin = int(obj.find('bndbox').find('ymin').text)
+        pxmax = int(obj.find('bndbox').find('xmax').text)
+        pymax = int(obj.find('bndbox').find('ymax').text)
+        # Pixel xcycwh
+        pxc = (pxmin + pxmax) // 2
+        pyc = (pymin + pymax) // 2
+        pw = pxmax - pxmin
+        ph = pymax - pymin
+        # Normalized x1y1x2y2
+        nxmin = pxmin / width
+        nymin = pymin / height
+        nxmax = pxmax / width
+        nymax = pymax / height
+        # Normalized xcycwh
+        nxc = pxc / width
+        nyc = pyc / height
+        nw = pw / width
+        nh = ph / height
+
         # Get difficult
         difficult = int(obj.find('difficult').text)
         has_difficult = has_difficult or bool(difficult)
 
+        # Append in obj_list
         obj_list.append({'name': name,
-                         'box': [xmin, ymin, xmax, ymax],
+                         'pxyxy': [pxmin, pymin, pxmax, pymax],
+                         'pxywh': [pxc, pyc, pw, ph],
+                         'nxyxy': [nxmin, nymin, nxmax, nymax],
+                         'nxywh': [nxc, nyc, nw, nh],
                          'difficult': difficult})
+
     label['has_difficult'] = has_difficult
     label['objects'] = obj_list
     for class_name in class_names:
         label[class_name] = [
-            {'box': obj['box'], 'difficult': obj['difficult']}
+            {'pxyxy': obj['pxyxy'], 'difficult': obj['difficult']}
             for obj in obj_list if obj['name'] == class_name
         ]
 
@@ -292,27 +298,15 @@ def remove_small_objs():
     num_objs, num_small_objs = 0, 0
     has_small_obj_xml = set()
     for xml_path in tqdm(xml_paths):
-        # Get root
-        tree = ET.parse(xml_path)
-        root = tree.getroot()
+        # Read xml
+        label = read_xml(xml_path)
+        root = label['root']
+        img_area = label['width'] * label['height']
 
-        # Size
-        w = int(root.find('size').find('width').text)
-        h = int(root.find('size').find('height').text)
-        img_area = w * h
-
-        # Get object
-        objs = root.findall('object')
-        num_objs += len(objs)
-        for obj in objs:
-            # Get class_id
-            xmin = int(obj.find('bndbox').find('xmin').text)
-            ymin = int(obj.find('bndbox').find('ymin').text)
-            xmax = int(obj.find('bndbox').find('xmax').text)
-            ymax = int(obj.find('bndbox').find('ymax').text)
-            w, h = xmax - xmin, ymax - ymin
-            area = w * h
-            if area / img_area < 10**2 / 512**2:
+        num_objs += len(label['objects'])
+        for obj in label['objects']:
+            obj_area = obj['pxywh'][2] * obj['pxywh'][3]  # noqa
+            if obj_area / img_area < 10**2 / 512**2:  # noqa
                 num_small_objs += 1
                 has_small_obj_xml.add(xml_path)
                 root.remove(obj)
@@ -383,8 +377,7 @@ def write_down_difficult_imgs():
 
 
 def main():
-    xmls2txts(r'T:\Working\v05\add_test_feedback_20240308\20240308',
-              ('person', 'vehicle'))
+    xmls2txts(r'U:\Animal\Working\Detection\v05\reolink\user_feedback\20240129_2th_latest_10w')
 
 
 if __name__ == '__main__':
