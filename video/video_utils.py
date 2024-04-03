@@ -12,7 +12,7 @@ from tqdm import trange, tqdm
 if __name__ == '__main__':
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from file.mv import get_time_prefix, format_stem
+from file.ops import get_time_prefix, format_stem
 
 
 def decode_fourcc(cc):
