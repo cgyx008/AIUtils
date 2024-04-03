@@ -29,15 +29,11 @@ def get_img_txt_xml(path):
 
     elif 'labels' in parts:
         img_path = change_path(path, 'labels', 'images', '.jpg')
-        if not img_path.exists():
-            img_path = img_path.with_suffix('.png')
         txt_path = path
         xml_path = change_path(path, 'labels', 'labels_xml', '.xml')
 
     elif 'labels_xml' in parts:
         img_path = change_path(path, 'labels_xml', 'images', '.jpg')
-        if not img_path.exists():
-            img_path = img_path.with_suffix('.png')
         txt_path = change_path(path, 'labels_xml', 'labels', '.txt')
         xml_path = path
     else:
