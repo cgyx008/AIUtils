@@ -7,8 +7,8 @@ import shutil
 from tqdm import tqdm
 
 
-def mv(src, dst, glob_patten='**/*', exclude_dir='/None/'):
-    """Move src to dst (dir).
+def cp(src, dst, glob_patten='**/*', exclude_dir='/None/'):
+    """Copy src to dst (dir).
 
     Args:
         src (str | Path): a source directory or a glob path.
@@ -17,7 +17,7 @@ def mv(src, dst, glob_patten='**/*', exclude_dir='/None/'):
         exclude_dir (str): exclude directory.
 
     Examples:
-        >>> mv('/home/kemove/218Algo/ganhao/AD/wd/v04/labels_add_vehicle_labels',
+        >>> cp('/home/kemove/218Algo/ganhao/AD/wd/v04/labels_add_vehicle_labels',
         >>>    '/home/kemove/218Algo/ganhao/AD/wd/v04/labels_add_vehicle_labels_voc',
         >>>     '**/*.xml',
         >>>     'None')
@@ -29,35 +29,51 @@ def mv(src, dst, glob_patten='**/*', exclude_dir='/None/'):
     src_files.sort()
 
     # Make destination parents
-    dst_parents = {dst / p.parent.relative_to(src) for p in src_files}
-    for p in dst_parents:
-        p.mkdir(parents=True, exist_ok=True)
+    dst_files = [dst / p.relative_to(src) for p in tqdm(src_files)]
+    create_parent_dirs(dst_files)
 
-    # Move files
-    err_files = {}
-    for p in tqdm(src_files, smoothing=0, ascii=True):
-        if (dst / p.relative_to(src)).exists():
-            continue
-        # time.sleep(0.5)
-        try:
-            shutil.copy2(p, dst / p.relative_to(src))
-        except OSError as e:
-            print(e)
-            print(f'src: {p}, dst: {dst / p.relative_to(src)}')
-            err_files[str(p)] = dst / p.relative_to(src)
+    # Copy files
+    src_dst = list(zip(src_files, dst_files))
+    pbar = tqdm(total=len(src_dst))
+    while src_dst:
+        s, d = src_dst[0]
+
+        if d.exists():
+            src_dst.pop(0)
+            pbar.update(1)
             continue
 
-    if not err_files:
-        return
-    print('Copying error files...')
-    for src, dst in tqdm(err_files.items(), smoothing=0, ascii=True):
         try:
-            # time.sleep(0.5)
-            shutil.copy2(src, dst)
+            shutil.copy2(s, d)
+            src_dst.pop(0)
+            pbar.update(1)
         except OSError as e:
             print(e)
-            print(f'src: {src}, dst: {dst}')
-            continue
+
+    # err_files = {}
+    # for p in tqdm(src_files, smoothing=0, ascii=True):
+    #     if (dst / p.relative_to(src)).exists():
+    #         continue
+    #     # time.sleep(0.5)
+    #     try:
+    #         shutil.copy2(p, dst / p.relative_to(src))
+    #     except OSError as e:
+    #         print(e)
+    #         print(f'src: {p}, dst: {dst / p.relative_to(src)}')
+    #         err_files[str(p)] = dst / p.relative_to(src)
+    #         continue
+    #
+    # if not err_files:
+    #     return
+    # print('Copying error files...')
+    # for src, dst in tqdm(err_files.items(), smoothing=0, ascii=True):
+    #     try:
+    #         # time.sleep(0.5)
+    #         shutil.copy2(src, dst)
+    #     except OSError as e:
+    #         print(e)
+    #         print(f'src: {src}, dst: {dst}')
+    #         continue
 
 
 def divide_dirs(root, num_divided_files=1000):
@@ -153,14 +169,17 @@ def rm_empty_dir():
 
 
 def create_parent_dirs(paths):
-    parent_dirs = sorted({Path(p).parent.as_posix() for p in paths})
+    parent_dirs = sorted({Path(p).parent.as_posix() for p in tqdm(paths)})
     os.umask(0)
     for parent_dir in tqdm(parent_dirs):
         Path(parent_dir).mkdir(parents=True, exist_ok=True)
 
 
 def main():
-    rm_empty_dir()
+    cp(
+        r'G:\data\wd\v006\images',
+        r'Z:\8TSSD\ganhao\data\wd\v006\images',
+    )
 
 
 if __name__ == '__main__':
