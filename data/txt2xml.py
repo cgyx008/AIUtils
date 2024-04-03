@@ -374,8 +374,44 @@ def write_down_difficult_imgs():
             f.write(f'{difficult_xml}\n')
 
 
+def cnt_labels(xml_dir, class_names=('animal', 'person', 'vehicle')):
+    name2num = dict.fromkeys(class_names, 0)
+    xml_paths = sorted(Path(xml_dir).glob('**/*.xml'))
+    for xml_path in tqdm(xml_paths):
+        label = read_xml(xml_path)
+        for c in class_names:
+            name2num[c] += len(label.get(c, []))
+    print(name2num)
+
+
+def rm_extra_txts(root):
+    root = Path(root)
+    txt_paths = sorted(root.glob('labels_iqa/**/*.txt'))
+    rm_paths = [p
+                for p in tqdm(txt_paths) if not get_img_txt_xml(p)[0].exists()]
+    for p in tqdm(rm_paths):
+        p.unlink()
+
+
+def rm_extra_xmls(root):
+    root = Path(root)
+
+    img_paths = sorted(root.glob('images/**/*.jpg'))
+    img_stems = {p.stem for p in tqdm(img_paths)}
+
+    xml_paths = sorted(root.glob('labels_xml/**/*.xml'))
+    xml_stems = {p.stem for p in tqdm(xml_paths)}
+
+    extra_xml_stems = xml_stems - img_stems
+    extra_xml_paths = [p for p in tqdm(xml_paths) if p.stem in extra_xml_stems]
+    for p in tqdm(extra_xml_paths):
+        p.unlink()
+
+
 def main():
-    xmls2txts(r'U:\Animal\Working\Detection\v05\reolink\user_feedback\20240129_2th_latest_10w')
+    rm_extra_txts(
+        r'G:\data\wd\v006'
+    )
 
 
 if __name__ == '__main__':
