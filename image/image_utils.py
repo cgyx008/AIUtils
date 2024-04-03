@@ -265,8 +265,108 @@ def write_down_dup_imgs(txt_path):
         json.dump(id2dupimg, f, indent=4)
 
 
+def vis_dup_imgs(json_path):
+    json_path = Path(json_path)
+    with open(json_path, 'r', encoding='utf-8') as f:
+        json_data = json.load(f)
+    for img_id, img_paths in tqdm(json_data.items()):
+        save_dir = json_path.parent / 'useless_images/duplicate_images' / img_id
+        os.umask(0)
+        save_dir.mkdir(parents=True, exist_ok=True)
+        for img_path in img_paths:
+            shutil.copy2(img_path, save_dir)
+
+
+def rm_dup_imgs(json_path):
+    json_path = Path(json_path)
+    with open(json_path, 'r') as f:
+        json_data = json.load(f)
+
+    dup_imgs = []
+    for dup_img_pairs in tqdm(json_data.values()):
+        picked, pick_idx = False, -1
+        for i, img in enumerate(dup_img_pairs):
+            if 'reolink_user' in img:
+                picked, pick_idx = True, i
+                break
+        dup_img_pairs.pop(picked and pick_idx or 0)
+        dup_imgs.extend(dup_img_pairs)
+
+    rm_path = json_path.with_stem(f'{json_path.stem}_rm')
+    with open(rm_path, 'w', encoding='utf-8') as f:
+        json.dump(dup_imgs, f, indent=4)
+
+    for p in dup_imgs:
+        Path(p).unlink()
+
+def collate_imgs_without_xml(root):
+    root = Path(root)
+
+    no_xml_dir = root / 'useless_images/images_without_xml'
+    no_xml_dir.mkdir(parents=True, exist_ok=True)
+
+    img_paths = sorted(root.glob('images/**/*.jpg'))
+    for img_path in tqdm(img_paths):
+        xml_path = get_img_txt_xml(img_path)[2]
+
+        if not xml_path.exists():
+            shutil.copy2(img_path, no_xml_dir)
+
+
+def collate_imgs_with_difficult_obj(root):
+    root = Path(root)
+
+    difficult_dir = root / 'useless_images/images_with_difficult_object'
+    difficult_dir.mkdir(parents=True, exist_ok=True)
+
+    img_paths = sorted(root.glob('images/**/*.jpg'))
+    for img_path in tqdm(img_paths):
+        xml_path = get_img_txt_xml(img_path)[2]
+
+        if read_xml(xml_path)['has_difficult']:
+            shutil.copy2(img_path, difficult_dir)
+
+
+def collate_useless_imgs(root):
+    collate_imgs_without_xml(root)
+    collate_imgs_with_difficult_obj(root)
+
+
+def rm_useless_images(root):
+    root = Path(root)
+    # 1. Remove images with difficult objects
+    useless_imgs = sorted(root.glob('useless_images/*/*.jpg'))
+
+    # 2. Remove duplicate images
+    json_path = sorted(root.glob('*_dup_imgs.json'))[0]
+    with open(json_path, 'r') as f:
+        json_data = json.load(f)
+    # dup_imgs = [Path(p) for d in json_data.values() for p in d[1:]]
+
+    dup_imgs = []
+    for dup_img_pairs in tqdm(json_data.values()):
+        picked, pick_idx = False, -1
+        for i, img in enumerate(dup_img_pairs):
+            if 'reolink_user' in img:
+                picked, pick_idx = True, i
+                break
+        dup_img_pairs.pop(picked and pick_idx or 0)
+        dup_imgs.extend(dup_img_pairs)
+
+    # 3. Combine 2 lists
+    rm_img_stems = {p.stem for p in useless_imgs + dup_imgs}
+
+    # 4. Remove images
+    img_paths = sorted(root.glob('images/**/*.jpg'))
+    for img_path in tqdm(img_paths):
+        if img_path.stem in rm_img_stems:
+            img_path.unlink(missing_ok=True)
+
+
 def main():
-    verify_imgs()
+    vis_yolo_box(
+        r'G:\data\wd\v006'
+    )
 
 
 if __name__ == '__main__':
