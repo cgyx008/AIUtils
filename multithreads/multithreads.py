@@ -7,7 +7,7 @@ def do_something():
     pass
 
 
-def multithreads():
+def multithreads(num_threads):
     data_list = []
-    with ThreadPoolExecutor(8) as executor:
+    with ThreadPoolExecutor(num_threads) as executor:
         list(tqdm(executor.map(do_something, data_list), total=len(data_list)))
