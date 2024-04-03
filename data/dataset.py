@@ -1,5 +1,6 @@
 import random
 import shutil
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -9,7 +10,7 @@ from tqdm import tqdm
 if __name__ == '__main__':
     import sys
     sys.path.insert(0, Path(__file__).parents[1].as_posix())
-from file.mv import create_parent_dirs
+from file.ops import create_parent_dirs
 
 
 def change_path(path, src_dir='images', dst_dir='labels', dst_suf='.txt'):
@@ -45,7 +46,7 @@ def get_img_txt_xml(path):
 def split_train_val(root, make_copy=False):
     root = Path(root)
     img_paths = sorted(root.glob('images/**/*.[jp][pn]g'))
-    img_names = list({p.name for p in img_paths})
+    img_names = {p.name for p in img_paths}
     assert len(img_paths) == len(img_names)
     random.shuffle(img_paths)
 
@@ -53,8 +54,8 @@ def split_train_val(root, make_copy=False):
     train_imgs = sorted(img_paths[:-num_val])
     val_imgs = sorted(img_paths[-num_val:])
 
-    train_lines = [f'{n}\n' for n in train_imgs]
-    val_lines = [f'{n}\n' for n in val_imgs]
+    train_lines = [f'{p.as_posix()}\n' for p in train_imgs]
+    val_lines = [f'{p.as_posix()}\n' for p in val_imgs]
     with open(root / 'train.txt', 'w', encoding='utf-8') as f:
         f.writelines(train_lines)
     with open(root / 'val.txt', 'w', encoding='utf-8') as f:
@@ -234,10 +235,31 @@ def cp_dataset(txt_path, dst_dir):
         shutil.copy2(src, dst)
 
 
+def vis_imgs_without_obj(root, num_threads=8):
+    root = Path(root)
+
+    vis_dir = root / 'images_without_object'
+    vis_dir.mkdir(exist_ok=True)
+
+    img_paths = sorted(root.glob('images/**/*.jpg'))
+
+    def _vis_imgs_without_obj(img_path):
+        txt_path = get_img_txt_xml(img_path)[1]
+        with open(txt_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        if not lines:
+            with open(vis_dir / 'img_paths.txt', 'a', encoding='utf-8') as f:
+                f.write(f'{img_path}\n')
+            shutil.copy2(img_path, vis_dir)
+
+    with ThreadPoolExecutor(num_threads) as executor:
+        list(tqdm(executor.map(_vis_imgs_without_obj, img_paths),
+                  total=len(img_paths)))
+
+
 def main():
-    cp_dataset(
-        '/home/kemove/8TSSD/ganhao/data/wd/v04/train.txt',
-        '/home/kemove/28Server/animal/Animal/Train/Detection/v005',
+    vis_imgs_without_obj(
+        r'G:\data\wd\v006',
     )
 
 
