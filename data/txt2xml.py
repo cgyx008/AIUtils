@@ -9,7 +9,11 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
+if __name__ == '__main__':
+    import sys
+    sys.path.append(Path(__file__).parents[1].as_posix())
 from data.dataset import get_img_txt_xml
+from file.ops import create_parent_dirs
 
 r"""VOC format:
 <annotation>
@@ -74,15 +78,13 @@ end_fmt = '''</annotation>
 def txt2xml(root, classes=('animal', 'person', 'vehicle')):
     """Transform txts in the root into xmls"""
     # Glob txts
-    txt_paths = sorted(Path(root).glob('labels/*.txt'))
+    txt_paths = sorted(Path(root).glob('labels/**/*.txt'))
     s = os.sep  # '/' in Linux, '\\' in Windows
     for txt_path in tqdm(txt_paths):
         if txt_path.stem == 'classes':
             continue
         # Get xml path
-        xml_path = txt_path.with_suffix('.xml')
-        xml_path = str(xml_path).replace(f'{s}labels{s}', f'{s}labels_xml{s}')
-        xml_path = Path(xml_path)
+        img_path, _, xml_path = get_img_txt_xml(txt_path)
         if xml_path.exists():
             continue
 
@@ -100,8 +102,6 @@ def txt2xml(root, classes=('animal', 'person', 'vehicle')):
         boxes[:, 3] += boxes[:, 1]
 
         # Read the image
-        img_path = str(txt_path).replace(f'{s}labels{s}', f'{s}images{s}')
-        img_path = Path(img_path).with_suffix('.jpg')
         if not img_path.exists():
             img_path = img_path.with_suffix('.png')
         if not img_path.exists():
@@ -340,9 +340,7 @@ def xmls2txts(root, classes=('animal', 'person', 'vehicle')):
     txt_dir.mkdir(exist_ok=True)
     txt_paths = [(txt_dir / xml_path.relative_to(xml_dir)).with_suffix('.txt')
                  for xml_path in tqdm(xml_paths)]
-    txt_parents = {str(txt_path.parent) for txt_path in tqdm(txt_paths)}
-    for txt_parent in tqdm(txt_parents):
-        Path(txt_parent).mkdir(parents=True, exist_ok=True)
+    create_parent_dirs(txt_paths)
 
     # classes
     classes = [classes] * len(xml_paths)
