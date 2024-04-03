@@ -1,5 +1,7 @@
 import json
+import os
 import re
+import shutil
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -11,7 +13,10 @@ from tqdm import tqdm
 if __name__ == '__main__':
     import sys
     sys.path.insert(0, Path(__file__).parents[1].as_posix())
+
 from data.dataset import get_img_txt_xml
+from data.txt2xml import read_xml
+from file.ops import create_parent_dirs
 
 
 def draw_rect_and_put_text(img, box, text, color=(0, 0, 255), box_thickness=1,
@@ -134,7 +139,7 @@ def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
         if cls_id > 2:
             continue
         cat = ('A', 'P', 'V')[cls_id]
-        text = f'{cat} {conf:.2f}' if conf > 0 else cat
+        text = f'{cat} {conf:.2f}' if conf >= 0 else cat
         color = [(255, 0, 0), (0, 255, 0), (0, 0, 255)][cls_id]
         draw_rect_and_put_text(img, box, text, color, 2)
 
@@ -160,9 +165,7 @@ def vis_yolo_box(cwd, save_dir=None, cls_bias=0, num_threads=8):
         save_paths = [save_dir / p.relative_to(cwd) for p in img_paths]
 
     # Create parent directories
-    save_parents = sorted(list({str(p.parent) for p in save_paths}))
-    for save_parent in tqdm(save_parents):
-        Path(save_parent).mkdir(parents=True, exist_ok=True)
+    create_parent_dirs(save_paths)
 
     cls_bias = [cls_bias] * len(img_paths)
 
@@ -211,7 +214,7 @@ def gen_img_id(img_path):
     return f'{w}_{h}_{s}_{v}'
 
 
-def get_img_txt_ids(txt_path):
+def get_img_ids_in_txt(txt_path):
     ids_txt = Path(txt_path).with_stem(f'{Path(txt_path).stem}_ids')
     with open(txt_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
@@ -220,6 +223,22 @@ def get_img_txt_ids(txt_path):
         img_id = gen_img_id(img_path)
         with open(ids_txt, 'a', encoding='utf-8') as f:
             f.write(f'{img_path} {img_id}\n')
+
+
+def get_img_ids_in_dir(img_dir, num_threads=8):
+    img_dir = Path(img_dir)
+    ids_txt = img_dir / f'{img_dir.stem}_img_ids.txt'
+    img_paths = sorted(img_dir.glob('**/images/**/*.jpg'))
+
+    with ThreadPoolExecutor(num_threads) as executor:
+        img_ids = list(
+            tqdm(executor.map(gen_img_id, img_paths), total=len(img_paths)))
+
+    lines = [f'{p.as_posix()} {img_id}\n'
+             for p, img_id in zip(tqdm(img_paths), img_ids)]
+
+    with open(ids_txt, 'w', encoding='utf-8') as f:
+        f.writelines(lines)
 
 
 def write_down_dup_imgs(txt_path):
