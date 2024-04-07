@@ -7,7 +7,7 @@ import shutil
 from tqdm import tqdm
 
 
-def cp(src, dst, glob_patten='**/*', exclude_dir='/None/'):
+def cp(src, dst, glob_patten='**/*', exclude_dir='/None/', overwrite=False):
     """Copy src to dst (dir).
 
     Args:
@@ -15,6 +15,7 @@ def cp(src, dst, glob_patten='**/*', exclude_dir='/None/'):
         dst (str | Path): destination directory, if not exists, create.
         glob_patten (str): global patten matching.
         exclude_dir (str): exclude directory.
+        overwrite (bool): whether to overwrite old files
 
     Examples:
         >>> cp('/home/kemove/218Algo/ganhao/AD/wd/v04/labels_add_vehicle_labels',
@@ -38,7 +39,7 @@ def cp(src, dst, glob_patten='**/*', exclude_dir='/None/'):
     while src_dst:
         s, d = src_dst[0]
 
-        if d.exists():
+        if not overwrite and d.exists():
             src_dst.pop(0)
             pbar.update(1)
             continue
@@ -177,8 +178,9 @@ def create_parent_dirs(paths):
 
 def main():
     cp(
-        r'G:\data\wd\v006\images',
-        r'Z:\8TSSD\ganhao\data\wd\v006\images',
+        r'G:\data\wd\v006',
+        r'U:\Animal\Train\Detection\v006',
+        overwrite=True,
     )
 
 
