@@ -60,12 +60,25 @@ def save_fp(img_dir, txt_dir, fp_dir):
         shutil.copy2(img_path, dst)
 
 
+def cnt_dataset(root):
+    root = Path(root)
+    img_paths = sorted(root.glob('**/*.[jp][pn]g'))
+
+    cls2imgs = {}
+    for p in tqdm(img_paths):
+        cls = p.relative_to(root).parts[0]
+        if cls not in cls2imgs:
+            cls2imgs[cls] = [p]
+        else:
+            cls2imgs[cls].append(p)
+
+    with open(root / 'cls2imgs.csv', 'w', encoding='utf-8') as f:
+        for cls, imgs in cls2imgs.items():
+            f.write(f'{cls},{len(imgs)}\n')
+
+
 def main():
-    save_fp(
-        'G:/data/wr/v03/v03_15/test',
-        'Z:/8TSSD/ganhao/projects/ultralytics/runs/classify/wr/predict/wr_v03_15_005_tune_000_scale_0_test/labels',
-        'G:/data/wr/v03/v03_15/working/wr_v03_15_005_tune_000_scale_0_test'
-    )
+    cnt_dataset(r'G:\data\wr\v019\train')
 
 
 if __name__ == '__main__':
