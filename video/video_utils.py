@@ -49,8 +49,8 @@ def get_cap_and_attr(video_path, verbose=True):
     return cap, width, height, num_frames, fps, fourcc
 
 
-def extract_frames(video_path, steps=10, seconds=0, max_workers=8, ext='jpg',
-                   extract_all_frames=False):
+def extract_video(video_path, steps=10, seconds=0, max_workers=8, ext='jpg',
+                  extract_all_frames=False):
     """
     每{steps}帧提取1帧，并保存在和视频同名的文件夹中。
     Args:
@@ -147,8 +147,8 @@ def extract_videos():
         if i < 0:
             continue
         print(f'{i + 1} / {len(vs)}')
-        extract_frames(p, steps=0, seconds=5, max_workers=0,
-                       extract_all_frames=False)
+        extract_video(p, steps=0, seconds=1, max_workers=8,
+                      extract_all_frames=False)
 
     # fast about 30%
     # func = partial(extract_frames, steps=0, seconds=2, max_workers=0)
@@ -168,12 +168,13 @@ def rename_videos():
     data_prefix = 'reolink_test'
     use_time_prefix = False
     video_dir = Path(r'T:\Private\Reolink\test_feedback\20240308')
-    video_paths = sorted(video_dir.glob('*.m[po][4v]'))
+    video_paths = sorted(video_dir.glob('**/*.m[po][4v]'))
     path_map = {}
     for p in tqdm(video_paths):
         new_stem = format_video_stem(p, data_prefix, use_time_prefix)
 
         if new_stem in path_map:
+            print(path_map[new_stem], p)
             raise RuntimeError(f'Duplicate names: {path_map[new_stem]} and {p}')
         path_map[new_stem] = p
 
