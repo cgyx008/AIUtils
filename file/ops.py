@@ -51,31 +51,6 @@ def cp(src, dst, glob_patten='**/*', exclude_dir='/None/', overwrite=False):
         except OSError as e:
             print(e)
 
-    # err_files = {}
-    # for p in tqdm(src_files, smoothing=0, ascii=True):
-    #     if (dst / p.relative_to(src)).exists():
-    #         continue
-    #     # time.sleep(0.5)
-    #     try:
-    #         shutil.copy2(p, dst / p.relative_to(src))
-    #     except OSError as e:
-    #         print(e)
-    #         print(f'src: {p}, dst: {dst / p.relative_to(src)}')
-    #         err_files[str(p)] = dst / p.relative_to(src)
-    #         continue
-    #
-    # if not err_files:
-    #     return
-    # print('Copying error files...')
-    # for src, dst in tqdm(err_files.items(), smoothing=0, ascii=True):
-    #     try:
-    #         # time.sleep(0.5)
-    #         shutil.copy2(src, dst)
-    #     except OSError as e:
-    #         print(e)
-    #         print(f'src: {src}, dst: {dst}')
-    #         continue
-
 
 def divide_dirs(root, num_divided_files=1000):
     """
@@ -178,9 +153,9 @@ def create_parent_dirs(paths):
 
 def main():
     cp(
-        r'G:\data\wd\v006',
-        r'U:\Animal\Train\Detection\v006',
-        overwrite=True,
+        r'Z:\8TSSD\ganhao\data\wd\v007\youtube\predict',
+        r'F:\data\AD\youtube',
+        '**/*.jpg',
     )
 
 

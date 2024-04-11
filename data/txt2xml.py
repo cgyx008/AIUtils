@@ -75,6 +75,54 @@ end_fmt = '''</annotation>
 '''
 
 
+def read_txt(txt_path, w=1, h=1):
+    label = {'path': str(txt_path), 'width': w, 'height': h}
+
+    # Read txt
+    with open(txt_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    lines = [list(map(eval, line.split())) for line in lines]
+
+    obj_list = []
+    for line in lines:
+        class_id = line[0]
+
+        # Normalized xcycwh
+        nxc, nyc, nw, nh = line[1:5]
+        # Normalized x1y1x2y2
+        nxmin = nxc - nw/2
+        nymin = nyc - nh/2
+        nxmax = nxc + nw/2
+        nymax = nyc + nh/2
+        # Pixel xcycwh
+        pxmin = int(nxmin * w)
+        pymin = int(nymin * h)
+        pxmax = int(nxmax * w)
+        pymax = int(nymax * h)
+        # Pixel x1y1x2y2
+        pxc = int(nxc * w)
+        pyc = int(nyc * h)
+        pw = int(nw * w)
+        ph = int(nh * h)
+
+        conf, iqa = 0, 0
+        if len(line) == 6:
+            conf = line[5]
+        if len(line) == 7:
+            conf, iqa = line[5], line[6]
+
+        obj_list.append({'class_id': class_id,
+                         'pxyxy': [pxmin, pymin, pxmax, pymax],
+                         'pxywh': [pxc, pyc, pw, ph],
+                         'nxyxy': [nxmin, nymin, nxmax, nymax],
+                         'nxywh': [nxc, nyc, nw, nh],
+                         'conf': conf,
+                         'iqa': iqa,})
+
+    label['objects'] = obj_list
+    return label
+
+
 def txt2xml(root, classes=('animal', 'person', 'vehicle')):
     """Transform txts in the root into xmls"""
     # Glob txts
@@ -408,9 +456,37 @@ def rm_extra_xmls(root):
         p.unlink()
 
 
+def crop_objs(img_dir, txt_dir):
+    img_dir, txt_dir = Path(img_dir), Path(txt_dir)
+    img_paths = sorted(img_dir.glob('**/*.jpg'))
+    txt_paths = sorted(txt_dir.glob('**/*.txt'))
+
+    name_fmt = '{}_xyxy_{}_{}_{}_{}.jpg'
+
+    stem2txt_path = {p.stem: p for p in tqdm(txt_paths)}
+    for img_path in tqdm(img_paths):
+        if img_path.stem not in stem2txt_path:
+            continue
+        txt_path = stem2txt_path[img_path.stem]
+
+        img = cv2.imread(str(img_path))
+        label = read_txt(txt_path, img.shape[1], img.shape[0])
+
+        for obj in label['objects']:
+            box = obj['pxyxy']
+            img_obj = img[box[1]:box[3], box[0]:box[2]]
+
+            name = name_fmt.format(img_path.stem, *box)
+            save_path = img_path.parents[1] / 'objects' / name
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+
+            cv2.imwrite(str(save_path), img_obj)
+
+
 def main():
-    rm_extra_txts(
-        r'G:\data\wd\v006'
+    crop_objs(
+        r'F:\data\AD\youtube',
+        r'F:\data\AD\predict\wd_v006_000_joint_train_epochs_300\labels'
     )
 
 
