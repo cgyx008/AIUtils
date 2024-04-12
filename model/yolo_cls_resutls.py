@@ -7,15 +7,15 @@ from tqdm import tqdm
 def get_labels(img_dir):
     img_dir = Path(img_dir)
     img_paths = sorted(img_dir.glob('**/*.[jp][pn]g'))
-    labels = {}
+    stem2path = {}
     for p in tqdm(img_paths):
-        if p.stem not in labels:
-            labels[p.stem] = p
+        if p.stem not in stem2path:
+            stem2path[p.stem] = p
         else:
-            print(labels[p.stem])
+            print(stem2path[p.stem])
             print(p)
-    assert len(img_paths) == len(labels)
-    return labels
+    assert len(img_paths) == len(stem2path)
+    return stem2path
 
 
 def get_preds(txt_dir):

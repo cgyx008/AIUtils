@@ -35,7 +35,7 @@ def cp(src, dst, glob_patten='**/*', exclude_dir='/None/', overwrite=False):
 
     # Copy files
     src_dst = list(zip(src_files, dst_files))
-    pbar = tqdm(total=len(src_dst))
+    pbar = tqdm(total=len(src_dst), ascii=True)
     while src_dst:
         s, d = src_dst[0]
 
