@@ -162,14 +162,14 @@ def split_tasks():
     """
     Split and assign clean tasks.
     """
-    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240222')
-    img_paths = sorted(root.glob('*/images/*.jpg'))
+    root = Path(r'G:\data\fepvd\v008\reolink\test')
+    img_paths = sorted(root.glob('20240511/*/images/*.jpg'))
 
     num_half = len(img_paths) // 2
     split_path = img_paths[num_half]
     split_dir_imgs = sorted(split_path.parent.glob('*.jpg'))
     num_contained_imgs = split_dir_imgs.index(split_path)
-    num_split_dir_imgs = len(list(split_path.parent.glob('*.jpg')))
+    num_split_dir_imgs = len(split_dir_imgs)
     if_contain = num_contained_imgs / num_split_dir_imgs > 0.5
 
     contain_dirs = sorted({str(p.parents[1]) for p in img_paths[:num_half]})
@@ -257,10 +257,32 @@ def vis_imgs_without_obj(root, num_threads=8):
                   total=len(img_paths)))
 
 
+def merge_txts(root):
+    root = Path(root)
+    for mode in ['train', 'val']:
+        # txt_paths = [root / f'{mode}.txt']
+        txt_paths = (sorted(root.glob(f'*/{mode}.txt')))
+
+        lines = []
+        for txt_path in tqdm(txt_paths):
+            with open(txt_path, 'r', encoding='utf-8') as f:
+                lines.extend(f.readlines())
+
+        with open(root / f'{mode}_new.txt', 'w', encoding='utf-8') as f:
+            f.writelines(lines)
+
+
+def rm_old_dirs():
+    """Remove old directories like 'labels' and 'images_vis_labels'"""
+    root = Path(r'G:\data\fepvd\v008\reolink\test\20240511')
+    rm_dirs = sorted(list(root.glob('*/images_vis_labels'))
+                     + list(root.glob('*/*/predict')))
+    for rm_dir in tqdm(rm_dirs):
+        shutil.rmtree(rm_dir)
+
+
 def main():
-    vis_imgs_without_obj(
-        r'G:\data\wd\v006',
-    )
+    rm_old_dirs()
 
 
 if __name__ == '__main__':
