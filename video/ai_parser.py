@@ -117,14 +117,15 @@ def parse_video(video_path, num_workers=8):
 
 def parse_videos(video_dir, num_workers=8):
     video_paths = sorted(Path(video_dir).glob('*.mp4'))
-    for video_path in tqdm(video_paths):
+    for i, video_path in enumerate(video_paths):
+        print(f'{i + 1} / {len(video_paths)}')
         parse_video(video_path, num_workers)
 
 
 def main():
     parse_videos(
-        r'G:\data\fepvd\private\reolink\test_feedback\20240306',
-        0
+        r'G:\data\fepvd\v007\working\reolink\test\20240422',
+        8
     )
 
 
