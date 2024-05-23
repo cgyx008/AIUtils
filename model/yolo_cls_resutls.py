@@ -78,7 +78,11 @@ def cnt_dataset(root):
 
 
 def main():
-    cnt_dataset(r'G:\data\wr\v019\train')
+    save_fp(
+        r'G:\data\wr\v019\test',
+        r'G:\data\wr\v019\working\wr_v019_004_args_tune_003_test\labels',
+        r'G:\data\wr\v019\working\wr_v019_004_args_tune_003_test_fp'
+    )
 
 
 if __name__ == '__main__':

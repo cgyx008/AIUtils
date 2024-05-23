@@ -13,6 +13,7 @@ from tqdm import tqdm
 if __name__ == '__main__':
     import sys
     sys.path.insert(0, Path(__file__).parents[1].as_posix())
+from file.ops import create_parent_dirs
 from image.image_utils import draw_rect_and_put_text
 
 
@@ -234,13 +235,32 @@ def rm_duplicate_lines_in_txts():
                   total=len(txt_paths)))
 
 
+def mv_predicted_imgs_in_a_dir(root):
+    root = Path(root)
+    src_paths = sorted(root.glob('*.txt'))
+    dst_paths = [p.parent / 'labels_iqa' /p.name for p in tqdm(src_paths)]
+    create_parent_dirs(dst_paths)
+    for src, dst in zip(tqdm(src_paths), dst_paths):
+        src.rename(dst)
+
+
+def mv_pred_label_dir():
+    """
+    Move predicted label directory to the same level as images directory
+    """
+    root = Path(r'G:\data\fepvd\v008\reolink\test\20240511')
+    label_dirs = sorted(root.glob('**/predict/**/labels_xml'))
+    for label_dir in tqdm(label_dirs):
+        shutil.move(label_dir, label_dir.parents[2])
+
+
 def main():
-    save_fp_and_fn(
-        'Z:/8TSSD/ganhao/data/wd/v04/trainval.txt',
-        'Z:/8TSSD/ganhao/projects/ultralytics/runs/detect/wd/predict/wd_v05_002_tune_000_trainval/labels',
-        'G:/data/wd/working/clean_train_val_v05_002',
-        1
-    )
+    # root = Path('/home/kemove/8TSSD/ganhao/data/wd/v008/labels_iqa/reolink/user')
+    # video_dirs = sorted(p for p in root.glob('202[23]/*') if p.is_dir())
+    # for i, video_dir in enumerate(video_dirs):
+    #     print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')
+    #     mv_predicted_imgs_in_a_dir(video_dir)
+    mv_pred_label_dir()
 
 
 if __name__ == '__main__':
