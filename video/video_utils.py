@@ -122,7 +122,7 @@ def extract_video(video_path, steps=10, seconds=0, max_workers=8, ext='jpg',
 
 
 def rewrite_video():
-    video_path = Path(r'G:\Data\AD\reolink\test_feedback\20231125\TP_male_deer_FP_female_deer-RecM05_20231124_194143_194203_SR_671E8A000_487599.mp4')
+    video_path = Path(r'G:\data\wd\reolink\test\20240520\2024-05-21\RecM08_20240521_142656_143156_0_531ECA1000_4D4DE77.mp4')
     cap, width, height, num_frames, fps, fourcc = get_cap_and_attr(video_path)
 
     save_path = video_path.parent / f'{video_path.stem}_rewrite.mp4'
@@ -138,7 +138,7 @@ def rewrite_video():
 
 
 def extract_videos():
-    r = Path(r'T:\Private\Reolink\test_feedback\20240308')
+    r = Path(r'G:\data\fepvd\v008\reolink\test\20240511')
     vs = sorted(r.glob('**/*.[am][pokv][4iv]'))
     # vs = sorted(r.glob('**/*.mp4'))
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
@@ -167,7 +167,7 @@ def format_video_stem(video_path, data_prefix='', use_time_prefix=True):
 def rename_videos():
     data_prefix = 'reolink_test'
     use_time_prefix = False
-    video_dir = Path(r'T:\Private\Reolink\test_feedback\20240308')
+    video_dir = Path(r'G:\data\fepvd\v008\reolink\test\20240511')
     video_paths = sorted(video_dir.glob('**/*.m[po][4v]'))
     path_map = {}
     for p in tqdm(video_paths):
@@ -304,8 +304,17 @@ def copy_new_videos(old_csv, new_csv, dst_dir):
         shutil.copy2(v[0], dst_dir / k)
 
 
+def loop_video_dirs(root, func, *args, **kwargs):
+    root = Path(root)
+    video_dirs = sorted(p for p in root.glob('*') if p.is_dir())
+    for i, video_dir in enumerate(video_dirs):
+        print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')
+        func(video_dir, *args, **kwargs)
+
+
 def main():
-    extract_videos()
+    # rename_videos()
+    extract_video(r'G:\data\wd\reolink\test\20240520\2024-05-21\RecM08_20240521_142656_143156_0_531ECA1000_4D4DE77.mp4', 1)
 
 
 if __name__ == '__main__':
