@@ -126,8 +126,7 @@ def read_txt(txt_path, w=1, h=1):
 def txt2xml(root, classes=('animal', 'person', 'vehicle')):
     """Transform txts in the root into xmls"""
     # Glob txts
-    txt_paths = sorted(Path(root).glob('labels/**/*.txt'))
-    s = os.sep  # '/' in Linux, '\\' in Windows
+    txt_paths = sorted(Path(root).glob('**/labels/**/*.txt'))
     for txt_path in tqdm(txt_paths):
         if txt_path.stem == 'classes':
             continue
@@ -483,11 +482,36 @@ def crop_objs(img_dir, txt_dir):
             cv2.imwrite(str(save_path), img_obj)
 
 
+def append_0_in_txt(txt_path, save_path=None):
+    with open(txt_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    lines = [line.strip() + ' 0.0\n' for line in lines]
+
+    if save_path is None:
+        txt_path = Path(txt_path)
+        save_path = txt_path.with_stem(f'{txt_path.stem}_append_0.txt')
+    with open(save_path, 'w', encoding='utf-8') as f:
+        f.writelines(lines)
+
+
+def append_0_in_labels_iqa_dir(root):
+    txt_paths = sorted(root.glob('labels/*.txt'))
+    save_dir = root / 'labels_iqa'
+    save_dir.mkdir(parents=True, exist_ok=True)
+    for txt_path in tqdm(txt_paths):
+        append_0_in_txt(txt_path, save_dir / txt_path.name)
+
+
 def main():
-    crop_objs(
-        r'F:\data\AD\youtube',
-        r'F:\data\AD\predict\wd_v006_000_joint_train_epochs_300\labels'
-    )
+    root = Path(r'G:\data\fepvd\v008\reolink\test')
+    video_dirs = sorted(p for p in root.glob('2024051*/*') if p.is_dir())
+    for i, video_dir in enumerate(video_dirs):
+        print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')
+        create_empty_labels(video_dir)
+        # xmls2txts(video_dir, ('person', 'vehicle'))
+        # append_0_in_labels_iqa_dir(video_dir)
+        # txt2xml(video_dir, ('person', 'vehicle'))
+        # create_empty_labels(video_dir)
 
 
 if __name__ == '__main__':
