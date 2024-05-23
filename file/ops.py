@@ -126,16 +126,6 @@ def format_filenames(dir_path):
         p.rename(format_filename(p))
 
 
-def mv_pred_label_dir():
-    """
-    Move predicted label directory to the same level as images directory
-    """
-    root = Path(r'T:\Private\Reolink\test_feedback\20240308')
-    label_dirs = sorted(root.glob('**/predict/**/labels_xml'))
-    for label_dir in tqdm(label_dirs):
-        shutil.move(label_dir, label_dir.parents[1])
-
-
 def rm_empty_dir():
     root = Path(r'T:\Private\Reolink\test_feedback\20240308')
     dirs = sorted(p for p in root.glob('**/predict') if p.is_dir())
@@ -152,11 +142,9 @@ def create_parent_dirs(paths):
 
 
 def main():
-    cp(
-        r'Z:\8TSSD\ganhao\data\wd\v007\youtube\predict',
-        r'F:\data\AD\youtube',
-        '**/*.jpg',
-    )
+    cp('/home/kemove/8TSSD/ganhao/data/wd/v008/reolink/user',
+       r'G:\data\fepvd\v008\reolink\test',
+       '2024051*/*/predict/fepvd_v006_006*/**/*')
 
 
 if __name__ == '__main__':
