@@ -152,7 +152,7 @@ def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
 
 def vis_yolo_box(cwd, save_dir=None, cls_bias=0, num_threads=8):
     cwd = Path(cwd)
-    img_paths = sorted(cwd.glob('**/images/**/*.[jp][pn]g'))
+    img_paths = sorted(cwd.glob('images/**/*.[jp][pn]g'))
     txt_paths = [get_img_txt_xml(p)[1] for p in tqdm(img_paths)]
 
     if save_dir is None:
@@ -364,9 +364,12 @@ def rm_useless_images(root):
 
 
 def main():
-    vis_yolo_box(
-        r'G:\data\wd\v006'
-    )
+    root = Path(r'G:\data\wd\working\v05\reolink\user_feedback\20240222\cyj')
+    video_dirs = sorted(p for p in root.glob('*') if p.is_dir() and int(p.stem.split('_')[0]) > 20220214)
+    for video_dir in video_dirs:
+        vis_yolo_box(
+            video_dir
+        )
 
 
 if __name__ == '__main__':
