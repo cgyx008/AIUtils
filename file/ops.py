@@ -109,7 +109,7 @@ def get_time_prefix(filepath):
     p = Path(filepath)
     stat = p.stat()
     ts = datetime.datetime.fromtimestamp(stat.st_mtime)
-    time_prefix = ts.strftime("%Y%m%d_%H%M%S_%f")
+    time_prefix = ts.strftime("%Y%m%d_%H%M%S")
     return time_prefix
 
 
