@@ -2,6 +2,7 @@ import datetime
 import os
 import shutil
 import time
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 # from functools import partial
 from pathlib import Path
@@ -138,7 +139,7 @@ def rewrite_video():
 
 
 def extract_videos():
-    r = Path(r'G:\data\fepvd\v008\reolink\test\20240511')
+    r = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
     vs = sorted(r.glob('**/*.[am][pokv][4iv]'))
     # vs = sorted(r.glob('**/*.mp4'))
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
@@ -165,10 +166,10 @@ def format_video_stem(video_path, data_prefix='', use_time_prefix=True):
 
 
 def rename_videos():
-    data_prefix = 'reolink_test'
-    use_time_prefix = False
-    video_dir = Path(r'G:\data\fepvd\v008\reolink\test\20240511')
-    video_paths = sorted(video_dir.glob('**/*.m[po][4v]'))
+    data_prefix = 'rl_user'
+    use_time_prefix = True
+    video_dir = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
+    video_paths = sorted(video_dir.glob('**/*.[am][opv][4iv]'))
     path_map = {}
     for p in tqdm(video_paths):
         new_stem = format_video_stem(p, data_prefix, use_time_prefix)
@@ -223,18 +224,20 @@ def gen_video_id(video_path):
         video_path (str | Path): video path
 
     Returns:
-        (str): f'{frame_w}_{frame_h}_{num_frames}_{fps}_{size}_{sum_frame_0}'
+        (str): f'{frame_w}_{frame_h}_{num_frames}_{fps}_{size}_{frame_sum}'
     """
     size = Path(video_path).stat().st_size
     cap, width, height, num_frames, fps, _ = get_cap_and_attr(video_path, False)
     ret, frame = cap.read()
-    sum_frame_0 = frame.sum() if ret else 0
-    return f'{width}_{height}_{num_frames}_{fps}_{size}_{sum_frame_0}'
+    frame_sum = frame.sum() if ret else 0
+    frame_var = frame.var() if ret else 0
+    return f'{width}_{height}_{num_frames}_{fps}_{size}_{frame_sum}_{frame_var}'
 
 
 def get_video_ids():
     video_root = Path(r'U:\Animal\Private\reolink\user_feedback')
-    video_paths = sorted(video_root.glob('20240222/*.[am][opv][4iv]'))
+    video_paths = sorted(video_root.glob('20[12][0-9]/**/*.[am][opv][4iv]'))
+    video_paths.extend(sorted(video_root.glob('20240222/**/*.[am][opv][4iv]')))
 
     ts = time.strftime("%Y%m%d_%H%M%S")
     csv_path = video_root / f'video_ids_{ts}.csv'
@@ -256,6 +259,25 @@ def get_id2video(csv_path):
         else:
             id2video[video_id].append(video_path)
     return id2video
+
+
+def cmp_csv(old_csv, new_csv):
+    id2video0 = get_id2video(old_csv)
+    id2video1 = get_id2video(new_csv)
+    old_videos, new_videos = defaultdict(list), defaultdict(list)
+    for k, v in id2video1.items():
+        if k in id2video0:
+            old_videos[k].extend(v)
+        else:
+            new_videos[k].extend(v)
+    return old_videos, new_videos
+
+
+def rm_old_videos(old_csv, new_csv):
+    old_videos, new_videos = cmp_csv(old_csv, new_csv)
+    for v in old_videos.values():
+        for p in v:
+            Path(p).unlink()
 
 
 def copy_new_videos(old_csv, new_csv, dst_dir):
@@ -280,18 +302,11 @@ def copy_new_videos(old_csv, new_csv, dst_dir):
     dst_dir = Path(dst_dir)
     dst_dir.mkdir(parents=True, exist_ok=True)
 
-    id2video0 = get_id2video(old_csv)
-    id2video1 = get_id2video(new_csv)
-    new_videos = {}
-    for k, v in id2video1.items():
-        if k in id2video0:
-            id2video0[k].extend(v)
-        else:
-            new_videos[k] = v
+    old_videos, new_videos = cmp_csv(old_csv, new_csv)
 
     name2video = {}
     for v in tqdm(new_videos.values()):
-        names = [f'{format_video_stem(p)}{Path(p).suffix}' for p in v]
+        names = [Path(p).with_stem(format_video_stem(p)).name for p in v]
         name = sorted(names)[0]
         if name not in name2video:
             name2video[name] = v
@@ -313,8 +328,7 @@ def loop_video_dirs(root, func, *args, **kwargs):
 
 
 def main():
-    # rename_videos()
-    extract_video(r'G:\data\wd\reolink\test\20240520\2024-05-21\RecM08_20240521_142656_143156_0_531ECA1000_4D4DE77.mp4', 1)
+    extract_videos()
 
 
 if __name__ == '__main__':
