@@ -99,8 +99,8 @@ def cv2_imshow(img_path):
 
 
 def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
-    if save_path.exists():
-        return
+    # if save_path.exists():
+    #     return
     assert img_path.stem == txt_path.stem
     if not Path(txt_path).exists():
         return
@@ -364,11 +364,13 @@ def rm_useless_images(root):
 
 
 def main():
-    root = Path(r'G:\data\wd\working\v05\reolink\user_feedback\20240222\cyj')
-    video_dirs = sorted(p for p in root.glob('*') if p.is_dir() and int(p.stem.split('_')[0]) > 20220214)
-    for video_dir in video_dirs:
+    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
+    video_dirs = sorted(p for p in root.glob('*/*/*') if p.is_dir())
+    # video_dirs = [root]
+    for i, video_dir in enumerate(video_dirs):
+        print(f'{i + 1} / {len(video_dirs)}: {video_dir.stem}')
         vis_yolo_box(
-            video_dir
+            video_dir, cls_bias=0
         )
 
 
