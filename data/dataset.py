@@ -162,8 +162,8 @@ def split_tasks():
     """
     Split and assign clean tasks.
     """
-    root = Path(r'G:\data\fepvd\v008\reolink\test')
-    img_paths = sorted(root.glob('20240511/*/images/*.jpg'))
+    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
+    img_paths = sorted(root.glob('**/images/*.jpg'))
 
     num_half = len(img_paths) // 2
     split_path = img_paths[num_half]
@@ -182,12 +182,12 @@ def split_tasks():
     contain_dir = root / '0'
     contain_dir.mkdir(exist_ok=True)
     for d in tqdm(contain_dirs):
-        shutil.move(d, contain_dir)
+        shutil.copytree(d, contain_dir / Path(d).name)
 
     remain_dir = root / '1'
     remain_dir.mkdir(exist_ok=True)
     for d in tqdm(remain_dirs):
-        shutil.move(d, remain_dir)
+        shutil.copytree(d, remain_dir / Path(d).name)
 
 
 def update_labels_from_a_dir():
@@ -261,7 +261,7 @@ def merge_txts(root):
     root = Path(root)
     for mode in ['train', 'val']:
         # txt_paths = [root / f'{mode}.txt']
-        txt_paths = (sorted(root.glob(f'*/{mode}.txt')))
+        txt_paths = (sorted(root.glob(f'**/{mode}.txt')))
 
         lines = []
         for txt_path in tqdm(txt_paths):
@@ -274,15 +274,44 @@ def merge_txts(root):
 
 def rm_old_dirs():
     """Remove old directories like 'labels' and 'images_vis_labels'"""
-    root = Path(r'G:\data\fepvd\v008\reolink\test\20240511')
-    rm_dirs = sorted(list(root.glob('*/images_vis_labels'))
-                     + list(root.glob('*/*/predict')))
+    root = Path(r'Z:\8TSSD\ganhao\data\fepvd\v007\reolink\test\20240507')
+    rm_dirs = sorted(list(root.glob('*/frames'))
+                     + list(root.glob('*/predict')))
     for rm_dir in tqdm(rm_dirs):
         shutil.rmtree(rm_dir)
 
 
+def cp_labels(src_dir, dst_dir):
+    """Use labels in src_dir to update labels in dst_dir"""
+    src_dir, dst_dir = Path(src_dir), Path(dst_dir)
+    xml_paths = sorted(src_dir.glob('labels_xml/*.xml'))
+    (dst_dir / 'labels_xml').mkdir(exist_ok=True)
+    for xml_path in xml_paths:
+        shutil.copy2(xml_path, dst_dir / 'labels_xml')
+
+
+def update_labels(src, dst):
+    """Use labels in src to update labels in dst"""
+    src, dst = Path(src), Path(dst)
+    src_videos = sorted(src.glob('**/images'))
+    src_videos = {p.parts[-2]: p.parent for p in tqdm(src_videos)}
+    dst_videos = sorted(dst.glob('**/images'))
+    dst_videos = {p.parts[-2]: p.parent for p in tqdm(dst_videos)}
+    assert len(src_videos) == len(dst_videos)
+    video2dirs = {k: [src_videos[k], dst_videos[k]] for k in src_videos}
+
+    for k, v in tqdm(video2dirs.items()):
+        src_dir, dst_dir = v
+        cp_labels(src_dir, dst_dir)
+
+
 def main():
-    rm_old_dirs()
+    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
+    merge_txts(root)
+    # video_dirs = sorted(p for p in root.glob('*/*/*') if p.is_dir())
+    # for i, video_dir in enumerate(video_dirs):
+    #     print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')
+    #     split_train_val(video_dir)
 
 
 if __name__ == '__main__':
