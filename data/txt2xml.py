@@ -126,13 +126,18 @@ def read_txt(txt_path, w=1, h=1):
 def txt2xml(root, classes=('animal', 'person', 'vehicle')):
     """Transform txts in the root into xmls"""
     # Glob txts
-    txt_paths = sorted(Path(root).glob('**/labels/**/*.txt'))
+    txt_paths = sorted(Path(root).glob('labels/**/*.txt'))
     for txt_path in tqdm(txt_paths):
         if txt_path.stem == 'classes':
             continue
-        # Get xml path
+        # Get img and xml path
         img_path, _, xml_path = get_img_txt_xml(txt_path)
         if xml_path.exists():
+            continue
+
+        if not img_path.exists():
+            img_path = img_path.with_suffix('.png')
+        if not img_path.exists():
             continue
 
         # Read txt
@@ -140,7 +145,7 @@ def txt2xml(root, classes=('animal', 'person', 'vehicle')):
             labels = np.array([list(map(eval, line.split())) for line in f])
         if labels.size == 0:
             labels = np.zeros((1, 5)) - 1  # Compatibility with empty images
-        class_ids, boxes = labels[:, 0].astype(int), labels[:, 1:]
+        class_ids, boxes = labels[:, 0].astype(int), labels[:, 1:5]
 
         # (xc, yc, w, h) norm -> (xmin, ymin, xmax, ymax) norm
         boxes[:, 0] -= boxes[:, 2] / 2
@@ -148,11 +153,7 @@ def txt2xml(root, classes=('animal', 'person', 'vehicle')):
         boxes[:, 2] += boxes[:, 0]
         boxes[:, 3] += boxes[:, 1]
 
-        # Read the image
-        if not img_path.exists():
-            img_path = img_path.with_suffix('.png')
-        if not img_path.exists():
-            continue
+        # Read image
         img = cv2.imread(str(img_path))
         if img is not None:
             h, w = img.shape[:2]
@@ -503,15 +504,14 @@ def append_0_in_labels_iqa_dir(root):
 
 
 def main():
-    root = Path(r'G:\data\fepvd\v008\reolink\test')
-    video_dirs = sorted(p for p in root.glob('2024051*/*') if p.is_dir())
+    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
+    video_dirs = sorted(p for p in root.glob('*/*/*') if p.is_dir())
+    # video_dirs = [root]
     for i, video_dir in enumerate(video_dirs):
         print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')
-        create_empty_labels(video_dir)
-        # xmls2txts(video_dir, ('person', 'vehicle'))
-        # append_0_in_labels_iqa_dir(video_dir)
-        # txt2xml(video_dir, ('person', 'vehicle'))
         # create_empty_labels(video_dir)
+        # xmls2txts(video_dir, ('animal', 'person', 'vehicle'))
+        append_0_in_labels_iqa_dir(video_dir)
 
 
 if __name__ == '__main__':
