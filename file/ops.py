@@ -126,11 +126,11 @@ def format_filenames(dir_path):
         p.rename(format_filename(p))
 
 
-def rm_empty_dir():
-    root = Path(r'T:\Private\Reolink\test_feedback\20240308')
-    dirs = sorted(p for p in root.glob('**/predict') if p.is_dir())
-    empty_dirs = [p for p in tqdm(dirs) if not os.listdir(p)]
-    for d in tqdm(empty_dirs):
+def rm_dirs(empty=False):
+    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
+    dirs = sorted(p for p in root.glob('**/images_vis_labels') if p.is_dir())
+    dirs = [p for p in tqdm(dirs) if not os.listdir(p)] if empty else dirs
+    for d in tqdm(dirs):
         shutil.rmtree(d)
 
 
@@ -142,9 +142,12 @@ def create_parent_dirs(paths):
 
 
 def main():
-    cp('/home/kemove/8TSSD/ganhao/data/wd/v008/reolink/user',
-       r'G:\data\fepvd\v008\reolink\test',
-       '2024051*/*/predict/fepvd_v006_006*/**/*')
+    cp(
+        r'U:\Animal\Working\Detection\v009\20240523_3th_latest_10w\labels_xml',
+        r'H:\data\wd\v009\20240523_3th_latest_10w\labels_xml',
+        glob_patten='[0][0-4]*/*.xml',
+        overwrite=True,
+    )
 
 
 if __name__ == '__main__':
