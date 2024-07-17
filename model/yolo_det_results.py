@@ -13,7 +13,7 @@ from tqdm import tqdm
 if __name__ == '__main__':
     import sys
     sys.path.insert(0, Path(__file__).parents[1].as_posix())
-from file.ops import create_parent_dirs
+from file.ops import create_parent_dirs, cp
 from image.image_utils import draw_rect_and_put_text
 
 
@@ -254,13 +254,45 @@ def mv_pred_label_dir():
         shutil.move(label_dir, label_dir.parents[2])
 
 
+def cp_pred_into_video_dir(video_dir: [str, Path], exp: str,):
+    """
+    Copy predicted images and labels into the video directory
+    """
+    video_dir = Path(video_dir)
+    cp(video_dir / 'predict' / exp, video_dir / 'images_vis_labels', '*.jpg')
+    cp(video_dir / 'predict' / exp / 'labels', video_dir / 'labels', '*.txt')
+
+
+def cp_pred_into_video_dirs():
+    exp = 'wd_v008_004_epochs_300'
+    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
+    video_paths = sorted(root.glob('**/*.[am][opv][4iv]'))
+    video_dirs = [p.parent / p.stem for p in video_paths]
+
+    for i, video_dir in enumerate(video_dirs):
+        print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')
+        cp_pred_into_video_dir(video_dir, exp)
+
+
+def rm_pred_dirs():
+    root = Path(r'G:\data\fepvd\v008\youtube')
+    pred_dirs = sorted(root.glob('*/images_vis_labels'))
+    for pred_dir in tqdm(pred_dirs):
+        shutil.rmtree(pred_dir)
+
+
 def main():
     # root = Path('/home/kemove/8TSSD/ganhao/data/wd/v008/labels_iqa/reolink/user')
     # video_dirs = sorted(p for p in root.glob('202[23]/*') if p.is_dir())
     # for i, video_dir in enumerate(video_dirs):
     #     print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')
     #     mv_predicted_imgs_in_a_dir(video_dir)
-    mv_pred_label_dir()
+    # save_fp_and_fn(
+    #     r'Z:\8TSSD\ganhao\data\fepvd\v007\val.txt',
+    #     r'Z:\8TSSD\ganhao\projects\ultralytics\runs\detect\fepvd\predict\fepvd_v007_001_mosaic_1_epochs_300_val\labels',
+    #     r'G:\data\fepvd\vis_007_001_val',
+    # )
+    rm_pred_dirs()
 
 
 if __name__ == '__main__':
