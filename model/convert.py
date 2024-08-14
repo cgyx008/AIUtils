@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import onnx
 import onnxsim
 import torch
@@ -42,8 +43,30 @@ def pt2onnx(pt_path, onnx_path='', simplify=True, **kwargs):
         onnx.save(onnx_model, onnx_path)
 
 
+def count_parameters(onnx_path):
+    """
+    计算 ONNX 模型的参数量。
+
+    参数:
+        onnx_path (str): ONNX 模型路径
+
+    返回:
+        int: 模型参数的数量。
+    """
+    model = onnx.load(onnx_path)
+
+    total_params = 0
+    for initializer in model.graph.initializer:
+        # 计算张量的元素数量
+        tensor_shape = initializer.dims
+        tensor_elements = np.prod(tensor_shape)
+        total_params += tensor_elements
+    return total_params
+
+
 def main():
-    pt2onnx(r'Z:\8TSSD\ganhao\projects\ConvNeXt-V2\weights\convnextv2_atto.pt')
+    # pt2onnx(r'Z:\8TSSD\ganhao\projects\ConvNeXt-V2\weights\convnextv2_atto.pt')
+    print(count_parameters(r'F:\GH_Novaic\wd_yolov8n\model\yolov8x-worldv2.onnx'))
 
 
 if __name__ == '__main__':
