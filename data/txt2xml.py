@@ -127,7 +127,7 @@ def txt2xml(root, classes=('animal', 'person', 'vehicle')):
     """Transform txts in the root into xmls"""
     # Glob txts
     txt_paths = sorted(Path(root).glob('labels/**/*.txt'))
-    for txt_path in tqdm(txt_paths):
+    for txt_path in tqdm(txt_paths, ascii=True):
         if txt_path.stem == 'classes':
             continue
         # Get img and xml path
@@ -144,7 +144,7 @@ def txt2xml(root, classes=('animal', 'person', 'vehicle')):
         with open(txt_path, 'r', encoding='utf-8') as f:
             labels = np.array([list(map(eval, line.split())) for line in f])
         if labels.size == 0:
-            labels = np.zeros((1, 5)) - 1  # Compatibility with empty images
+            labels = np.zeros((1, 5)) - 1  # Compatibility with empty labels
         class_ids, boxes = labels[:, 0].astype(int), labels[:, 1:5]
 
         # (xc, yc, w, h) norm -> (xmin, ymin, xmax, ymax) norm
@@ -176,32 +176,6 @@ def txt2xml(root, classes=('animal', 'person', 'vehicle')):
                 c = classes[class_id]
                 f.write(obj_fmt.format(c, *box))
             f.write(end_fmt)
-
-
-def xml2txt(xml_path, txt_path=None, classes=('animal', 'person', 'vehicle')):
-    # Initialize `txt_path` if not specified
-    if txt_path is None:
-        txt_path = Path(xml_path).with_suffix('.txt')
-    # Initialize classes
-    classes = {c: i for i, c in enumerate(classes)}
-
-    label = read_xml(xml_path)
-    txt_lines = []
-    if not label['has_difficult']:
-        for obj in label['objects']:
-            # Get class_id
-            name = obj['name']
-            class_id = classes.get(name, -1)
-            if class_id == -1:
-                print(f'Error class name "{name}" in {xml_path}, skip it.')
-                continue
-
-            nxc, nyc, nw, nh = obj['nxywh']
-            txt_lines.append(f'{class_id} {nxc} {nyc} {nw} {nh}\n')
-
-    # Write in txt
-    with open(txt_path, 'w', encoding='utf-8') as f:
-        f.writelines(txt_lines)
 
 
 def read_xml(xml_path):
@@ -270,6 +244,55 @@ def read_xml(xml_path):
         ]
 
     return label
+
+
+def xml2txt(xml_path, txt_path=None, classes=('animal', 'person', 'vehicle')):
+    # Initialize `txt_path` if not specified
+    if txt_path is None:
+        txt_path = Path(xml_path).with_suffix('.txt')
+    # Initialize classes
+    classes = {c: i for i, c in enumerate(classes)}
+
+    label = read_xml(xml_path)
+    txt_lines = []
+    if not label['has_difficult']:
+        for obj in label['objects']:
+            # Get class_id
+            name = obj['name']
+            class_id = classes.get(name, -1)
+            if class_id == -1:
+                print(f'Error class name "{name}" in {xml_path}, skip it.')
+                continue
+
+            nxc, nyc, nw, nh = obj['nxywh']
+            txt_lines.append(f'{class_id} {nxc} {nyc} {nw} {nh}\n')
+
+    # Write in txt
+    with open(txt_path, 'w', encoding='utf-8') as f:
+        f.writelines(txt_lines)
+
+
+def xmls2txts(root, classes=('animal', 'person', 'vehicle')):
+    # xml2txt
+    root = Path(root)
+
+    # xml
+    xml_dir = root / 'labels_xml'
+    xml_paths = sorted(xml_dir.glob('**/*.xml'))
+
+    # txt
+    txt_dir = root / 'labels'
+    txt_dir.mkdir(exist_ok=True)
+    txt_paths = [(txt_dir / xml_path.relative_to(xml_dir)).with_suffix('.txt')
+                 for xml_path in tqdm(xml_paths)]
+    create_parent_dirs(txt_paths)
+
+    # classes
+    classes = [classes] * len(xml_paths)
+
+    with ThreadPoolExecutor(8) as executor:
+        list(tqdm(executor.map(xml2txt, xml_paths, txt_paths, classes),
+                  total=len(xml_paths)))
 
 
 def write_xml(img_path, xml_path):
@@ -375,33 +398,10 @@ def remove_small_objs():
     print(num_objs, num_small_objs)
 
 
-def xmls2txts(root, classes=('animal', 'person', 'vehicle')):
-    # xml2txt
-    root = Path(root)
-
-    # xml
-    xml_dir = root / 'labels_xml'
-    xml_paths = sorted(xml_dir.glob('**/*.xml'))
-
-    # txt
-    txt_dir = root / 'labels'
-    txt_dir.mkdir(exist_ok=True)
-    txt_paths = [(txt_dir / xml_path.relative_to(xml_dir)).with_suffix('.txt')
-                 for xml_path in tqdm(xml_paths)]
-    create_parent_dirs(txt_paths)
-
-    # classes
-    classes = [classes] * len(xml_paths)
-
-    with ThreadPoolExecutor(8) as executor:
-        list(tqdm(executor.map(xml2txt, xml_paths, txt_paths, classes),
-                  total=len(xml_paths)))
-
-
 def create_empty_labels(root):
     root = Path(root)
     img_paths = sorted(root.glob('images/**/*.[jp][pn]g'))
-    for img_path in tqdm(img_paths):
+    for img_path in tqdm(img_paths, ascii=True):
         txt_path, xml_path = get_img_txt_xml(img_path)[1:]
         txt_path.parent.mkdir(parents=True, exist_ok=True)
         xml_path.parent.mkdir(parents=True, exist_ok=True)

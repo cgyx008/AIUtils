@@ -73,7 +73,7 @@ def divide_dirs(root, num_divided_files=1000):
         Path(parent).mkdir(parents=True, exist_ok=True)
 
     # Move files
-    for i, p in enumerate(tqdm(paths)):
+    for i, p in enumerate(tqdm(paths, ascii=True)):
         shutil.move(p, root / str(i // num_divided_files).zfill(num_0s))
 
 
