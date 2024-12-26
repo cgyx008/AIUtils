@@ -6,7 +6,7 @@ from xml.dom import minidom
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
 
 if __name__ == '__main__':
@@ -126,7 +126,7 @@ def read_txt(txt_path, w=1, h=1):
 def txt2xml(root, classes=('animal', 'person', 'vehicle')):
     """Transform txts in the root into xmls"""
     # Glob txts
-    txt_paths = sorted(Path(root).glob('labels/**/*.txt'))
+    txt_paths = sorted(Path(root).glob('**/labels/**/*.txt'))
     for txt_path in tqdm(txt_paths, ascii=True):
         if txt_path.stem == 'classes':
             continue
@@ -158,8 +158,12 @@ def txt2xml(root, classes=('animal', 'person', 'vehicle')):
         if img is not None:
             h, w = img.shape[:2]
         else:
-            with Image.open(img_path) as img:
-                w, h = img.size
+            try:
+                with Image.open(img_path) as img:
+                    w, h = img.size
+            except UnidentifiedImageError as e:
+                w, h = 0, 0
+                print(e)
 
         # norm -> pixel
         boxes[:, [0, 2]] *= w
@@ -231,17 +235,19 @@ def read_xml(xml_path):
         obj_list.append({'name': name,
                          'pxyxy': [pxmin, pymin, pxmax, pymax],
                          'pxywh': [pxc, pyc, pw, ph],
+                         'parea': pw * ph,
                          'nxyxy': [nxmin, nymin, nxmax, nymax],
                          'nxywh': [nxc, nyc, nw, nh],
+                         'narea': nw * nh,
                          'difficult': difficult})
 
     label['has_difficult'] = has_difficult
     label['objects'] = obj_list
-    for class_name in class_names:
-        label[class_name] = [
-            {'pxyxy': obj['pxyxy'], 'difficult': obj['difficult']}
-            for obj in obj_list if obj['name'] == class_name
-        ]
+    # for class_name in class_names:
+    #     label[class_name] = [
+    #         {'pxyxy': obj['pxyxy'], 'difficult': obj['difficult']}
+    #         for obj in obj_list if obj['name'] == class_name
+    #     ]
 
     return label
 
@@ -295,7 +301,16 @@ def xmls2txts(root, classes=('animal', 'person', 'vehicle')):
                   total=len(xml_paths)))
 
 
-def write_xml(img_path, xml_path):
+def write_xml(img_path, xml_path, objs=None):
+    """
+    Args:
+        img_path (str | Path): image path
+        xml_path (str | Path): xml path
+        objs: e.g. [
+                     ['cat', [0, 0, 80, 80]],
+                     ['dog', [20, 20, 100, 120]]
+                   ]
+    """
     img_path, xml_path = Path(img_path), Path(xml_path)
     # Get width and height
     img = cv2.imread(str(img_path))
@@ -331,24 +346,27 @@ def write_xml(img_path, xml_path):
     segmented = ET.SubElement(root, 'segmented')
     segmented.text = '0'
     # object
-    # obj = ET.SubElement(root, 'object')
-    # name = ET.SubElement(obj, 'name')
-    # name.text = 'Vehicle'  # name
-    # pose = ET.SubElement(obj, 'pose')
-    # pose.text = 'Unspecified'
-    # truncated = ET.SubElement(obj, 'truncated')
-    # truncated.text = '0'
-    # difficult = ET.SubElement(obj, 'difficult')
-    # difficult.text = '0'
-    # bndbox = ET.SubElement(obj, 'bndbox')
-    # xmin = ET.SubElement(bndbox, 'xmin')
-    # xmin.text = '0'
-    # ymin = ET.SubElement(bndbox, 'ymin')
-    # ymin.text = '0'
-    # xmax = ET.SubElement(bndbox, 'xmax')
-    # xmax.text = '0'
-    # ymax = ET.SubElement(bndbox, 'ymax')
-    # ymax.text = '0'
+    objs = [] if objs is None else objs
+    for obj in objs:
+        class_name, box = obj
+        obj = ET.SubElement(root, 'object')
+        name = ET.SubElement(obj, 'name')
+        name.text = class_name
+        pose = ET.SubElement(obj, 'pose')
+        pose.text = 'Unspecified'
+        truncated = ET.SubElement(obj, 'truncated')
+        truncated.text = '0'
+        difficult = ET.SubElement(obj, 'difficult')
+        difficult.text = '0'
+        bndbox = ET.SubElement(obj, 'bndbox')
+        xmin = ET.SubElement(bndbox, 'xmin')
+        xmin.text = str(int(box[0]))
+        ymin = ET.SubElement(bndbox, 'ymin')
+        ymin.text = str(int(box[1]))
+        xmax = ET.SubElement(bndbox, 'xmax')
+        xmax.text = str(int(box[2]))
+        ymax = ET.SubElement(bndbox, 'ymax')
+        ymax.text = str(int(box[3]))
 
     # Convert ElementTree to string
     xml_string = ET.tostring(root, encoding='utf-8')
@@ -434,9 +452,10 @@ def cnt_labels(xml_dir, class_names=('animal', 'person', 'vehicle')):
 
 def rm_extra_txts(root):
     root = Path(root)
-    txt_paths = sorted(root.glob('labels_iqa/**/*.txt'))
-    rm_paths = [p
-                for p in tqdm(txt_paths) if not get_img_txt_xml(p)[0].exists()]
+    txt_paths = sorted(root.glob('labels/**/*.txt'))
+    rm_paths = [p for p in tqdm(txt_paths, ascii=True)
+                if not get_img_txt_xml(p)[0].exists()]
+    print(rm_paths)
     for p in tqdm(rm_paths):
         p.unlink()
 
@@ -452,6 +471,7 @@ def rm_extra_xmls(root):
 
     extra_xml_stems = xml_stems - img_stems
     extra_xml_paths = [p for p in tqdm(xml_paths) if p.stem in extra_xml_stems]
+    print(extra_xml_paths)
     for p in tqdm(extra_xml_paths):
         p.unlink()
 
@@ -503,15 +523,53 @@ def append_0_in_labels_iqa_dir(root):
         append_0_in_txt(txt_path, save_dir / txt_path.name)
 
 
+def sort_objs_by_area_in_xml_path(xml_path):
+    xml_path = Path(xml_path)
+    labels = read_xml(xml_path)
+    labels['objects'].sort(key=lambda x: x['parea'], reverse=True)
+
+    img_path = get_img_txt_xml(labels['path'])[0]
+    xml_path = labels['path']
+    objs = [[obj['name'], obj['pxyxy']] for obj in labels['objects']]
+    write_xml(img_path, xml_path, objs)
+
+
+def sort_objs_by_area_in_xml_dir(xml_dir):
+    xml_dir = Path(xml_dir)
+    xml_paths = sorted(xml_dir.glob('**/*.xml'))
+    for i, xml_path in enumerate(tqdm(xml_paths)):
+        if i < 26440:
+            continue
+        sort_objs_by_area_in_xml_path(xml_path)
+
+
 def main():
-    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
-    video_dirs = sorted(p for p in root.glob('*/*/*') if p.is_dir())
-    # video_dirs = [root]
-    for i, video_dir in enumerate(video_dirs):
-        print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')
-        # create_empty_labels(video_dir)
-        # xmls2txts(video_dir, ('animal', 'person', 'vehicle'))
-        append_0_in_labels_iqa_dir(video_dir)
+    txt2xml(
+        '/data/ganhao/wd/v008/reolink/user/20240613/ovd_002_epoch_50_18_categories_gl_norm_conf_0_1',
+        ['person', 'vehicle', 'car', 'animal', 'package',
+         'hat', 'glasses', 'clothing', 'footwear', 'chair',
+         'window', 'bottle', 'lamp', 'cabinet', 'wheel',
+         'tree', 'flower', 'plant']
+    )
+    # root = Path(r'U:\ovd\data\reolink\working\20241122_ppvpd_3w')
+    # category_txt = root / 'categories_from_ovd_by_spacy_trf_normalized.txt'
+    # with open(category_txt, 'r', encoding='utf-8') as f:
+    #     categories = [line.strip() for line in f.readlines()]
+    # print(f'{len(categories) = }')
+    # print(f'{categories[0] = }')
+    # print(f'{categories[1] = }')
+    # print(f'{categories[-1] = }')
+    # txt2xml(root, categories)
+
+    # sort_objs_by_area_in_xml_dir('/home/ganhao/data/ovd/reolink/labels_xml')
+    # root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
+    # video_dirs = sorted(p for p in root.glob('*/*/*') if p.is_dir())
+    # # video_dirs = [root]
+    # for i, video_dir in enumerate(video_dirs):
+    #     print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')
+    #     # create_empty_labels(video_dir)
+    #     # xmls2txts(video_dir, ('animal', 'person', 'vehicle'))
+    #     append_0_in_labels_iqa_dir(video_dir)
 
 
 if __name__ == '__main__':
