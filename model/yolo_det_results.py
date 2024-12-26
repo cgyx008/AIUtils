@@ -174,6 +174,7 @@ def save_fp_and_fn(txt, pred_dir, save_dir, num_workers=8):
         >>> save_dir = 'G:/data/wd/working/clean_train_val'
         >>> save_fp_and_fn(txt, pred_dir, save_dir)
     """
+    # TODO: Show confidence
     with open(txt, 'r', encoding='utf-8') as f:
         lines = f.readlines()
 
@@ -190,23 +191,26 @@ def save_fp_and_fn(txt, pred_dir, save_dir, num_workers=8):
 
 
 def cp_fp_fn_labels():
-    save_dir = Path(r'G:\data\wd\working\clean_train_val')
+    save_dir = Path(r'H:\data\wd\v009\v008_trainval_fp_fn')
     fp = sorted(save_dir.glob('fp/*.[jp][pn]g'))
     fn = sorted(save_dir.glob('fn/*.[jp][pn]g'))
     stems = {p.stem for p in (fp + fn)}
 
-    txt = r'Z:\8TSSD\ganhao\data\wd\v04\trainval.txt'
+    txt = r'Z:\8TSSD\ganhao\data\wd\v008\trainval.txt'
     with open(txt, 'r', encoding='utf-8') as f:
         lines = f.readlines()
 
     label_dir = save_dir / 'labels'
     label_dir.mkdir(exist_ok=True)
 
-    for line in tqdm(lines):
+    for i, line in enumerate(tqdm(lines)):
+        if i < 442260:
+            continue
         line = line.strip()
         img_path = line.replace('/home/kemove/218Algo', 'W:')
         img_path = img_path.replace('/home/kemove', 'Z:')
-        txt_path = img_path.replace('/images/', '/labels/')
+        txt_path = img_path.replace('/images/', '/labels_iqa/')
+        txt_path = txt_path.replace('Z:/8TSSD/ganhao/data/wd', 'U:/Animal/Train/Detection')
         txt_path = Path(txt_path).with_suffix('.txt')
         if txt_path.stem in stems:
             shutil.copy2(txt_path, label_dir)
@@ -227,8 +231,8 @@ def _rm_duplicate_lines_in_txts(txt_path):
 
 
 def rm_duplicate_lines_in_txts():
-    cwd = Path(r'Z:\2TSSD\ganhao\Projects\ultralytics\runs\detect\predict\wdv04_002_remove_coco_val\labels')
-    txt_paths = sorted(cwd.glob('*.txt'))
+    cwd = Path('/home/ganhao/data/ovd/objects365/labels')
+    txt_paths = sorted(cwd.glob('**/*.txt'))
 
     with ThreadPoolExecutor(8) as executor:
         list(tqdm(executor.map(_rm_duplicate_lines_in_txts,txt_paths),
@@ -288,11 +292,11 @@ def main():
     #     print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')
     #     mv_predicted_imgs_in_a_dir(video_dir)
     # save_fp_and_fn(
-    #     r'Z:\8TSSD\ganhao\data\fepvd\v007\val.txt',
-    #     r'Z:\8TSSD\ganhao\projects\ultralytics\runs\detect\fepvd\predict\fepvd_v007_001_mosaic_1_epochs_300_val\labels',
-    #     r'G:\data\fepvd\vis_007_001_val',
+    #     r'Z:\8TSSD\ganhao\data\wd\v008\trainval.txt',
+    #     r'Z:\8TSSD\ganhao\projects\ultralytics\runs\detect\wd\predict\wd_v008_015_epochs_100_v8n_mosaic_1_iqa_close_mosaic_10_trainval\labels',
+    #     r'H:\data\wd\v009\v008_trainval_fp_fn',
     # )
-    rm_pred_dirs()
+    rm_duplicate_lines_in_txts()
 
 
 if __name__ == '__main__':
