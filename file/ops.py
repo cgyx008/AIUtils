@@ -1,10 +1,15 @@
-import datetime
 import os
 import re
+from datetime import datetime
 from pathlib import Path
 import shutil
 
 from tqdm import tqdm
+
+
+def get_datetime_str():
+    # time.strftime('%Y%m%d_%H%M%S', time.localtime())
+    return datetime.now().strftime('%Y%m%d_%H%M%S')
 
 
 def cp(src, dst, glob_patten='**/*', exclude_dir='/None/', overwrite=False):
@@ -20,8 +25,8 @@ def cp(src, dst, glob_patten='**/*', exclude_dir='/None/', overwrite=False):
     Examples:
         >>> cp('/home/kemove/218Algo/ganhao/AD/wd/v04/labels_add_vehicle_labels',
         >>>    '/home/kemove/218Algo/ganhao/AD/wd/v04/labels_add_vehicle_labels_voc',
-        >>>     '**/*.xml',
-        >>>     'None')
+        >>>    '**/*.xml',
+        >>>    'None')
     """
     print(f'Copying {src} to {dst}')
     src, dst = Path(src), Path(dst)
@@ -95,7 +100,8 @@ def merge_divided_dirs(root):
     # Remove empty directories
     dir_paths = [p for p in tqdm(paths) if p.is_dir()]
     for p in tqdm(dir_paths):
-        shutil.rmtree(p)
+        if p.exists():
+            shutil.rmtree(p)
 
 
 def format_stem(stem):
@@ -108,7 +114,7 @@ def format_stem(stem):
 def get_time_prefix(filepath):
     p = Path(filepath)
     stat = p.stat()
-    ts = datetime.datetime.fromtimestamp(stat.st_mtime)
+    ts = datetime.fromtimestamp(stat.st_mtime)
     time_prefix = ts.strftime("%Y%m%d_%H%M%S")
     return time_prefix
 
@@ -142,11 +148,8 @@ def create_parent_dirs(paths):
 
 
 def main():
-    cp(
-        r'U:\Animal\Working\Detection\v009\20240523_3th_latest_10w\labels_xml',
-        r'H:\data\wd\v009\20240523_3th_latest_10w\labels_xml',
-        glob_patten='[0][0-4]*/*.xml',
-        overwrite=True,
+    merge_divided_dirs(
+        '/home/ganhao/data/wd_ov/20240909_first_10000_images_for_trial_labeling/images'
     )
 
 
