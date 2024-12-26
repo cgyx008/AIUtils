@@ -50,7 +50,7 @@ def get_cap_and_attr(video_path, verbose=True):
     return cap, width, height, num_frames, fps, fourcc
 
 
-def extract_video(video_path, steps=10, seconds=0, max_workers=8, ext='jpg',
+def extract_video(video_path, steps=0, seconds=1, max_workers=8, ext='jpg',
                   extract_all_frames=False):
     """
     每{steps}帧提取1帧，并保存在和视频同名的文件夹中。
@@ -139,8 +139,8 @@ def rewrite_video():
 
 
 def extract_videos():
-    r = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
-    vs = sorted(r.glob('**/*.[am][pokv][4iv]'))
+    r = Path('/home/ganhao/data/reolink/test/20241115/v8m_person_man_debug_input_yuv1_no_detections_gl_norm_aw_mean')
+    vs = sorted(r.glob('*.[amw][pokvm][4iv]'))
     # vs = sorted(r.glob('**/*.mp4'))
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
     print(f'Number of videos: {len(vs)}')
@@ -169,7 +169,7 @@ def rename_videos():
     data_prefix = 'rl_user'
     use_time_prefix = True
     video_dir = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
-    video_paths = sorted(video_dir.glob('**/*.[am][opv][4iv]'))
+    video_paths = sorted(video_dir.glob('**/*.[amw][mopv][4iv]'))
     path_map = {}
     for p in tqdm(video_paths):
         new_stem = format_video_stem(p, data_prefix, use_time_prefix)
@@ -235,9 +235,8 @@ def gen_video_id(video_path):
 
 
 def get_video_ids():
-    video_root = Path(r'U:\Animal\Private\reolink\user_feedback')
-    video_paths = sorted(video_root.glob('20[12][0-9]/**/*.[am][opv][4iv]'))
-    video_paths.extend(sorted(video_root.glob('20240222/**/*.[am][opv][4iv]')))
+    video_root = Path('/mnt/28Server/common/AlgoTestVideos/OfficialWebsite')
+    video_paths = sorted(video_root.glob('*.[amwAMW][mopvMOPV][4ivIV]'))
 
     ts = time.strftime("%Y%m%d_%H%M%S")
     csv_path = video_root / f'video_ids_{ts}.csv'
