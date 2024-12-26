@@ -1,11 +1,17 @@
 import json
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
+
+if __name__ == '__main__':
+    import sys
+    sys.path.insert(0, Path(__file__).parents[1].absolute().as_posix())
+from data.dataset import get_img_txt_xml
 
 
 def get_coco_json_format():
@@ -35,7 +41,7 @@ def get_coco_json_format():
                          'area': 702.1057499999998,
                          'iscrowd': 0,
                          'image_id': 289343,  # same with 'id' in 'images'
-                         'bbox': [473.07, 395.93, 38.65, 28.67],
+                         'bbox': [473.07, 395.93, 38.65, 28.67],  # [xmin, ymin, w, h]
                          'category_id': 18,
                          'id': 1768},  # annotation id
                         ...],
@@ -67,7 +73,7 @@ def get_images_and_annotations(img_id_and_txt, name2img):
         w, h = im.size
 
     # image dict
-    image = {'license': 1, 'file_name': str(img_path), 'coco_url': '',
+    image = {'license': 1, 'file_name': Path(img_path).name, 'coco_url': '',
              'height': h, 'width': w, 'date_captured': '', 'flickr_url': '',
              'id': img_id}
 
@@ -92,40 +98,34 @@ def get_images_and_annotations(img_id_and_txt, name2img):
     return image, annotations
 
 
-def txt2json(txt_dir, img_dir, json_path, classes=('Pet', 'Person', 'Vehicle')):
+def txt2json(img_paths, txt_paths, json_path,
+              categories=('animal', 'person', 'vehicle', 'package')):
     """Transform YOLO format txts to COCO format json.
-
     Args:
-        txt_dir (str | Path): txt directory.
-        img_dir (str | Path): images directory.
+        img_paths list(str | Path): images paths.
+        txt_paths list(str | Path): txt paths.
         json_path (str | Path): Save json path.
-        classes (tuple[str]): class names.
+        categories (tuple[str] | list[str]): class names.
     """
     json_data = {
-        'info': {'description': 'PPVD 2023 Dataset', 'url': '',
-                 'version': '1.0', 'year': 2023,
-                 'contributor': 'Reolink Algorithm Group Members',
-                 'date_created': '2023/02/03'},
-        'licenses': [{'url': '', 'id': 1, 'name': 'Reolink License'}],
+        'info': {'description': 'Open Images v7 Dataset', 'url': '',
+                 'version': '1.0', 'year': datetime.now().year,
+                 'contributor': 'Open Images v7',
+                 'date_created': datetime.now().strftime('%Y/%m/%d')},
+        'licenses': [{'url': '', 'id': 1, 'name': 'Open Images License'}],
         'images': [],
         'annotations': [],
         'categories': [{'supercategory': c, 'id': i, 'name': c}
-                       for i, c in enumerate(classes)]
+                       for i, c in enumerate(categories)]
     }
 
-    print('Searching images...')
-    imgs = sorted(list(Path(img_dir).glob('**/*.[jp][pn]g')))
-    name2img = {p.stem: p for p in imgs}
-    # assert len(imgs) == len(name2img)
-
-    print('Searching txts...')
-    txts = sorted(list(Path(txt_dir).glob('**/*.txt')))
+    name2img = {p.stem: p for p in img_paths}
 
     with ThreadPoolExecutor(8) as exe:
         data = list(tqdm(
             exe.map(partial(get_images_and_annotations, name2img=name2img),
-                    enumerate(txts)),
-            total=len(txts)
+                    enumerate(txt_paths)),
+            total=len(txt_paths)
         ))
     imgs, anns = zip(*data)
     imgs = [f for f in imgs if f]
@@ -140,15 +140,32 @@ def txt2json(txt_dir, img_dir, json_path, classes=('Pet', 'Person', 'Vehicle')):
     json_data['images'], json_data['annotations'] = imgs, anns
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(json_data, f, indent=4)
-    assert 1
+
+
+def generate_json_from_ov_dino_labels():
+    root = Path('/home/ganhao/data/ppvpd/open_vocabulary/20240817')
+    txt_paths = sorted(root.glob('labels/*.txt'))
+    img_paths = [get_img_txt_xml(t)[0] for t in txt_paths]
+    json_path = root / 'ppvpd_20240817_open_vocabulary_annotations_by_spacy.json'
+    with open(root / 'categories_from_ovd_by_spacy.txt', 'r', encoding='utf-8') as f:
+        categories = [c.strip() for c in f]
+    txt2json(img_paths, txt_paths, json_path, categories)
+
+
+def make_oiv7_json():
+    root = Path('/mnt/28Server/animal/ovd/data/reolink/working/20240909_first_10000_images_for_trial_labeling')
+    img_paths = sorted(root.glob('images/**/*.jpg'))  # 1743042
+    txt_paths = [get_img_txt_xml(img_path)[1] for img_path in img_paths]
+    json_path = root / 'annotations.json'
+    with open(root / 'category.txt', 'r', encoding='utf-8') as f:
+        categories = [line.strip().rsplit(' ', maxsplit=1)[0] for line in f]
+    print(f'{len(categories) = }')
+    print(f'{categories[0] = }')
+    txt2json(img_paths, txt_paths, json_path, categories)
 
 
 def main():
-    txt2json(
-        'W:/liaojianhui/PPVD/20230203/labels',
-        'W:/liaojianhui/PPVD',
-        'W:/ganhao/PPVD/20230203/labels.json'
-    )
+    make_oiv7_json()
 
 
 if __name__ == '__main__':
