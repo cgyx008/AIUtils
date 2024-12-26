@@ -22,6 +22,21 @@ from file.ops import create_parent_dirs
 def draw_rect_and_put_text(img, box, text, color=(0, 0, 255), box_thickness=1,
                            font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=0.6,
                            line_type=cv2.LINE_AA):
+    """
+    Draw rectangles and put texts in an image.
+    Args:
+        img (np.ndarray): BGR image
+        box (list[int]): [x1, y1, x2, y2], e.g. [0, 0, 100, 100]
+        text (str): e.g. 'person'
+        color (tuple(int)): default (0, 0, 255)
+        box_thickness (int): default 1
+        font: default cv2.FONT_HERSHEY_SIMPLEX
+        font_scale (float): default 0.6
+        line_type: default cv2.LINE_AA
+
+    Returns: np.ndarray, image with boxes and texts.
+
+    """
     # bounding-box
     h, w, _ = img.shape
     box = list(map(int, box))
@@ -363,15 +378,65 @@ def rm_useless_images(root):
             img_path.unlink(missing_ok=True)
 
 
+def ultralytics_annotator_demo():
+    from ultralytics.utils.plotting import Annotator, colors
+
+
+    root = Path('/data/ganhao/wd/v008/reolink/user/20240613')
+    save_dir = root / 'ovd_002_epoch_50_18_categories_gl_norm_conf_0_1/images_vis_batched_nms_preds_and_annos'
+    os.umask(0)
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    categories = ['person', 'vehicle', 'car', 'animal', 'package',
+                  'hat', 'glasses', 'clothing', 'footwear', 'chair',
+                  'window', 'bottle', 'lamp', 'cabinet', 'wheel',
+                  'tree', 'flower', 'plant']
+
+    stem_to_img_paths = {p.stem: p for p in root.glob('**/images/*.jpg')}
+    stem_to_txt_paths = {p.stem: p for p in
+                         sorted(root.glob('*/batched_nms*/*.txt'))}
+
+    for stem, txt_path in tqdm(stem_to_txt_paths.items()):
+        with open(txt_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+
+        img_path = stem_to_img_paths[stem]
+        if not lines:
+            shutil.copy2(img_path, save_dir)
+            continue
+
+        img = cv2.imread(str(img_path))
+        h, w = img.shape[:2]
+        annotator = Annotator(img, line_width=1)
+        for line in lines[::-1]:
+            category_idx, *box, confidence = line.split()
+            category_idx = int(category_idx)
+            box = list(map(float, box))
+            box[0] -= box[2] / 2
+            box[1] -= box[3] / 2
+            box[2] += box[0]
+            box[3] += box[1]
+            box[0] *= w
+            box[1] *= h
+            box[2] *= w
+            box[3] *= h
+            confidence = float(confidence)
+            label = f'{categories[category_idx]} {confidence:.2f}'
+            annotator.box_label(box, label, colors(category_idx)[::-1])
+
+        annotator.save(str(save_dir / img_path.name))
+
+
 def main():
-    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
-    video_dirs = sorted(p for p in root.glob('*/*/*') if p.is_dir())
-    # video_dirs = [root]
-    for i, video_dir in enumerate(video_dirs):
-        print(f'{i + 1} / {len(video_dirs)}: {video_dir.stem}')
-        vis_yolo_box(
-            video_dir, cls_bias=0
-        )
+    vis_yolo_box(r'H:\data\wd\v009\20240523_3th_latest_10w\zsy')
+    # root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
+    # video_dirs = sorted(p for p in root.glob('*/*/*') if p.is_dir())
+    # # video_dirs = [root]
+    # for i, video_dir in enumerate(video_dirs):
+    #     print(f'{i + 1} / {len(video_dirs)}: {video_dir.stem}')
+    #     vis_yolo_box(
+    #         video_dir, cls_bias=0
+    #     )
 
 
 if __name__ == '__main__':
