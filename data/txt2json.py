@@ -1,4 +1,5 @@
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from functools import partial
@@ -6,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
+from pycocotools.coco import COCO
 from tqdm import tqdm
 
 if __name__ == '__main__':
@@ -108,11 +110,11 @@ def txt2json(img_paths, txt_paths, json_path,
         categories (tuple[str] | list[str]): class names.
     """
     json_data = {
-        'info': {'description': 'Open Images v7 Dataset', 'url': '',
+        'info': {'description': 'WDOV Dataset', 'url': '',
                  'version': '1.0', 'year': datetime.now().year,
-                 'contributor': 'Open Images v7',
+                 'contributor': 'Reolink Algorithm',
                  'date_created': datetime.now().strftime('%Y/%m/%d')},
-        'licenses': [{'url': '', 'id': 1, 'name': 'Open Images License'}],
+        'licenses': [{'url': '', 'id': 1, 'name': 'Reolink License'}],
         'images': [],
         'annotations': [],
         'categories': [{'supercategory': c, 'id': i, 'name': c}
@@ -142,6 +144,38 @@ def txt2json(img_paths, txt_paths, json_path,
         json.dump(json_data, f, indent=4)
 
 
+def json2txts(json_path):
+    """Transform COCO json to YOLO format txts.
+    Args:
+        json_path (str | Path): COCO json path.
+    """
+    json_path = Path(json_path)
+    label_dir = json_path.parent / 'json2labels'
+    os.umask(0)
+    label_dir.mkdir(parents=True, exist_ok=True)
+
+    anns = COCO(json_path)
+    for img_id, img_dict in tqdm(anns.imgs.items()):
+        file_name = img_dict['file_name']
+        img_w, img_h = img_dict['width'], img_dict['height']
+        img_anns = anns.imgToAnns[img_id]
+        txt_path = label_dir / file_name.replace('.jpg', '.txt')
+        with open(txt_path, 'w', encoding='utf-8') as f:
+            for ann in img_anns:
+                category_id = ann['category_id']
+                xmin, ymin, w, h = ann['bbox']
+                xc = (xmin + w / 2) / img_w
+                yc = (ymin + h / 2) / img_h
+                w /= img_w
+                h /= img_h
+                f.write(f'{category_id} {xc} {yc} {w} {h}\n')
+
+    category_txt = json_path.parent / 'categories_in_json.txt'
+    with open(category_txt, 'w', encoding='utf-8') as f:
+        for i in tqdm(range(len(anns.cats))):
+            f.write(f"{anns.cats[i]['name']}\n")
+
+
 def generate_json_from_ov_dino_labels():
     root = Path('/home/ganhao/data/ppvpd/open_vocabulary/20240817')
     txt_paths = sorted(root.glob('labels/*.txt'))
@@ -165,7 +199,17 @@ def make_oiv7_json():
 
 
 def main():
-    make_oiv7_json()
+    root = Path('/home/ganhao/data/cc3m')
+    img_paths = sorted(root.glob('images/*.jpg'))
+    txt_paths = sorted(root.glob('labels/*.txt'))
+    with open(root / 'category_for_ultralytics.txt', 'r', encoding='utf-8') as f:
+        categories = [line.strip().split(': ', maxsplit=1)[1] for line in f]
+    txt2json(
+        img_paths,
+        txt_paths,
+        root / 'cc3m1m_remove_duplicate_boxes.json',
+        categories
+    )
 
 
 if __name__ == '__main__':

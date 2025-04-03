@@ -123,7 +123,7 @@ def extract_video(video_path, steps=0, seconds=1, max_workers=8, ext='jpg',
 
 
 def rewrite_video():
-    video_path = Path(r'G:\data\wd\reolink\test\20240520\2024-05-21\RecM08_20240521_142656_143156_0_531ECA1000_4D4DE77.mp4')
+    video_path = Path(r'H:\data\test\20250118\910777916293978.mp4')
     cap, width, height, num_frames, fps, fourcc = get_cap_and_attr(video_path)
 
     save_path = video_path.parent / f'{video_path.stem}_rewrite.mp4'
@@ -139,7 +139,7 @@ def rewrite_video():
 
 
 def extract_videos():
-    r = Path('/home/ganhao/data/reolink/test/20241115/v8m_person_man_debug_input_yuv1_no_detections_gl_norm_aw_mean')
+    r = Path(r'H:\data\reolink\user\20241210')
     vs = sorted(r.glob('*.[amw][pokvm][4iv]'))
     # vs = sorted(r.glob('**/*.mp4'))
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
@@ -166,9 +166,9 @@ def format_video_stem(video_path, data_prefix='', use_time_prefix=True):
 
 
 def rename_videos():
-    data_prefix = 'rl_user'
-    use_time_prefix = True
-    video_dir = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
+    data_prefix = ''
+    use_time_prefix = False
+    video_dir = Path(r'H:\data\wd\v009\20250226')
     video_paths = sorted(video_dir.glob('**/*.[amw][mopv][4iv]'))
     path_map = {}
     for p in tqdm(video_paths):

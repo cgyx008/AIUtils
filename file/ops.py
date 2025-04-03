@@ -38,9 +38,13 @@ def cp(src, dst, glob_patten='**/*', exclude_dir='/None/', overwrite=False):
     dst_files = [dst / p.relative_to(src) for p in tqdm(src_files)]
     create_parent_dirs(dst_files)
 
+    with open(dst / 'src_to_dst.txt', 'w', encoding='utf-8') as f:
+        for src_file, dst_file in zip(src_files, dst_files):
+            f.write(f'{src_file.as_posix()} -> {dst_file.as_posix()}\n')
+
     # Copy files
     src_dst = list(zip(src_files, dst_files))
-    pbar = tqdm(total=len(src_dst), ascii=True)
+    pbar = tqdm(total=len(src_dst), ascii=True, smoothing=0)
     while src_dst:
         s, d = src_dst[0]
 
@@ -132,10 +136,10 @@ def format_filenames(dir_path):
         p.rename(format_filename(p))
 
 
-def rm_dirs(empty=False):
-    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
-    dirs = sorted(p for p in root.glob('**/images_vis_labels') if p.is_dir())
-    dirs = [p for p in tqdm(dirs) if not os.listdir(p)] if empty else dirs
+def rm_dirs(only_remove_empty=False):
+    root = Path('/data/ganhao/ovd/test/test_categories_backup')
+    dirs = sorted(p for p in root.glob('*/*') if p.is_dir())
+    dirs = [p for p in tqdm(dirs) if not os.listdir(p)] if only_remove_empty else dirs
     for d in tqdm(dirs):
         shutil.rmtree(d)
 
@@ -148,9 +152,9 @@ def create_parent_dirs(paths):
 
 
 def main():
-    merge_divided_dirs(
-        '/home/ganhao/data/wd_ov/20240909_first_10000_images_for_trial_labeling/images'
-    )
+    cp('/data_raid0/ganhao/data/wd/v009',
+       '/mnt/28Server/animal/Animal/Train/Detection/v009',
+       )
 
 
 if __name__ == '__main__':

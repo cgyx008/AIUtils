@@ -122,7 +122,12 @@ def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
 
     # Read the txt
     with open(txt_path, 'r', encoding='utf-8') as f:
-        labels = np.array([list(map(eval, line.split())) for line in f])
+        lines = f.readlines()
+    max_num_cols = max([len(line.split()) for line in lines])
+    labels = np.full((len(lines), max_num_cols), -1, dtype=float)
+    for i, line in enumerate(lines):
+        line = list(map(eval, line.split()))
+        labels[i, :len(line)] = line
     if labels.size == 0:
         classes, boxes, confs = [], [], []
     else:
@@ -151,11 +156,11 @@ def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
         boxes[:, [1, 3]] *= h
     for cls, box, conf in zip(classes, boxes, confs):
         cls_id = cls + cls_bias
-        if cls_id > 2:
-            continue
-        cat = ('A', 'P', 'V')[cls_id]
-        text = f'{cat} {conf:.2f}' if conf >= 0 else cat
-        color = [(255, 0, 0), (0, 255, 0), (0, 0, 255)][cls_id]
+        # if cls_id > 2:
+        #     continue
+        # cat = ('A', 'P', 'V')[cls_id]
+        text = f'{cls_id} {conf:.2f}' if conf >= 0 else f'{cls_id}'
+        color = [(255, 0, 0), (0, 255, 0), (0, 0, 255)][1]
         draw_rect_and_put_text(img, box, text, color, 2)
 
     # Save the image
@@ -169,6 +174,8 @@ def vis_yolo_box(cwd, save_dir=None, cls_bias=0, num_threads=8):
     cwd = Path(cwd)
     img_paths = sorted(cwd.glob('images/**/*.[jp][pn]g'))
     txt_paths = [get_img_txt_xml(p)[1] for p in tqdm(img_paths)]
+    # txt_paths = [Path(str(p).replace('/labels/', '/labels_multilabel/'))
+    #              for p in tqdm(txt_paths)]
 
     if save_dir is None:
         save_paths = [
@@ -223,7 +230,7 @@ def gen_img_id(img_path):
     img = cv2.imread(img_path)
     if img is None:
         with Image.open(img_path) as img:
-            img = np.array(img)
+            img = np.array(img)[..., ::-1]
     h, w = img.shape[:2]
     s, v = img.sum(), img.var()
     return f'{w}_{h}_{s}_{v}'
@@ -428,15 +435,7 @@ def ultralytics_annotator_demo():
 
 
 def main():
-    vis_yolo_box(r'H:\data\wd\v009\20240523_3th_latest_10w\zsy')
-    # root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
-    # video_dirs = sorted(p for p in root.glob('*/*/*') if p.is_dir())
-    # # video_dirs = [root]
-    # for i, video_dir in enumerate(video_dirs):
-    #     print(f'{i + 1} / {len(video_dirs)}: {video_dir.stem}')
-    #     vis_yolo_box(
-    #         video_dir, cls_bias=0
-    #     )
+    vis_yolo_box(r'/home/ganhao/data/ppvpd', save_dir='/home/ganhao/data/ppvpd/images_vis_labels_multilabel')
 
 
 if __name__ == '__main__':

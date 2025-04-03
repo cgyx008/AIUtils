@@ -126,7 +126,7 @@ def read_txt(txt_path, w=1, h=1):
 def txt2xml(root, classes=('animal', 'person', 'vehicle')):
     """Transform txts in the root into xmls"""
     # Glob txts
-    txt_paths = sorted(Path(root).glob('**/labels/**/*.txt'))
+    txt_paths = sorted(Path(root).glob('labels/**/*.txt'))
     for txt_path in tqdm(txt_paths, ascii=True):
         if txt_path.stem == 'classes':
             continue
@@ -516,6 +516,7 @@ def append_0_in_txt(txt_path, save_path=None):
 
 
 def append_0_in_labels_iqa_dir(root):
+    root = Path(root)
     txt_paths = sorted(root.glob('labels/*.txt'))
     save_dir = root / 'labels_iqa'
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -544,13 +545,7 @@ def sort_objs_by_area_in_xml_dir(xml_dir):
 
 
 def main():
-    txt2xml(
-        '/data/ganhao/wd/v008/reolink/user/20240613/ovd_002_epoch_50_18_categories_gl_norm_conf_0_1',
-        ['person', 'vehicle', 'car', 'animal', 'package',
-         'hat', 'glasses', 'clothing', 'footwear', 'chair',
-         'window', 'bottle', 'lamp', 'cabinet', 'wheel',
-         'tree', 'flower', 'plant']
-    )
+    append_0_in_labels_iqa_dir('/data_raid0/ganhao/data/wd/20250226')
     # root = Path(r'U:\ovd\data\reolink\working\20241122_ppvpd_3w')
     # category_txt = root / 'categories_from_ovd_by_spacy_trf_normalized.txt'
     # with open(category_txt, 'r', encoding='utf-8') as f:

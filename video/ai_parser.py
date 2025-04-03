@@ -29,7 +29,7 @@ def read_txt(txt_path, w=1, h=1):
         match = re.match('\t([a-z]+):', line)
         if match:
             cls = match.group(1)
-            if w == 1 and h == 1:
+            if (w == 1 and h == 1) or (w == 0 and h == 0):
                 w = int(re.search(r'width:\s*(\d+)', line).group(1))
                 h = int(re.search(r'height:\s*(\d+)', line).group(1))
             continue
@@ -80,6 +80,8 @@ def parse_video(video_path, num_workers=8):
         for cls, outputs in model_results[mo].items():
             color = colors[cls]
             for *box, score in outputs:
+                if len(box) > 4:
+                    score = box[4]
                 box[0] *= width
                 box[1] *= height
                 box[2] *= width
@@ -92,6 +94,8 @@ def parse_video(video_path, num_workers=8):
             for *box, score, rid, state in outputs:
                 if state != 1:
                     continue
+                if len(box) > 4:
+                    score = box[4]
                 action = True
                 box[0] *= width
                 box[1] *= height
@@ -124,7 +128,7 @@ def parse_videos(video_dir, num_workers=8):
 
 def main():
     parse_videos(
-        r'G:\data\fepvd\v007\working\reolink\test\20240422',
+        r'H:\data\test\20250213',
         8
     )
 

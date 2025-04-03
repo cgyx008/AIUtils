@@ -3,6 +3,7 @@ import shutil
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import cv2
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
@@ -305,9 +306,73 @@ def update_labels(src, dst):
         cp_labels(src_dir, dst_dir)
 
 
+def jpg2npy():
+    # oiv7: 1.4TB
+    # o365: 500GB
+    root = Path('/home/ganhao/data/Objects365_v1/2019-08-02')
+    img_paths = sorted(root.glob('images/train/*.jpg'))
+    npy_sizes = []
+    for img_path in tqdm(img_paths):
+        with Image.open(img_path) as im:
+            w, h = im.size
+        r = 640 / max(h, w)
+        w = round(w * r)
+        h = round(h * r)
+        npy_sizes.append(w * h * 3)
+
+    print(f'need storage: {sum(npy_sizes) / (1024 ** 3)}GB')
+
+
+def copy_and_save_as_640_npy():
+    root = Path('/data_raid0/ganhao/data/wd/v009')
+    train_txt = root / 'train.txt'
+    val_txt = root / 'val.txt'
+    test_txt = root / 'test.txt'
+    with open(train_txt, 'r', encoding='utf-8') as f:
+        img_paths = [Path(p.strip()) for p in f]
+    with open(val_txt, 'r', encoding='utf-8') as f:
+        img_paths.extend([Path(p.strip()) for p in f])
+    with open(test_txt, 'r', encoding='utf-8') as f:
+        img_paths.extend([Path(p.strip()) for p in f])
+
+    # npy_dir = root / 'images'
+    # os.umask(0)
+    # npy_dir.mkdir(exist_ok=True)
+
+    def _letterbox_and_save_as_640_npy(img_path):
+        npy_path = img_path.parent / f'{img_path.stem}.npy'
+        if npy_path.exists():
+            return
+        img = cv2.imread(str(img_path))
+        h, w = img.shape[:2]
+        rw, rh = 640 / w, 352 / h
+        r = min(rw, rh)
+        w = round(w * r)
+        h = round(h * r)
+        img = cv2.resize(img, (w, h))
+        np.save(npy_path, img)
+
+    with ThreadPoolExecutor(4) as executor:
+        list(tqdm(executor.map(_letterbox_and_save_as_640_npy, img_paths),
+                  total=len(img_paths)))
+
+    # for img_path in tqdm(img_paths):
+    #     img = cv2.imread(str(img_path))
+    #     h, w = img.shape[:2]
+    #     rw, rh = 640 / w, 352 / h
+    #     r = min(rw, rh)
+    #     w = round(w * r)
+    #     h = round(h * r)
+    #     img = cv2.resize(img, (w, h))
+    #     npy_path = img_path.parent / f'{img_path.stem}.npy'
+    #     if not npy_path.exists():
+    #         np.save(npy_path, img)
+
+
 def main():
-    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
-    merge_txts(root)
+    copy_and_save_as_640_npy()
+    # root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
+    # merge_txts(root)
     # video_dirs = sorted(p for p in root.glob('*/*/*') if p.is_dir())
     # for i, video_dir in enumerate(video_dirs):
     #     print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')

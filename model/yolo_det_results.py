@@ -231,8 +231,8 @@ def _rm_duplicate_lines_in_txts(txt_path):
 
 
 def rm_duplicate_lines_in_txts():
-    cwd = Path('/home/ganhao/data/ovd/objects365/labels')
-    txt_paths = sorted(cwd.glob('**/*.txt'))
+    root = Path(r'/home/ganhao/data/ppvpd/labels_multilabel')
+    txt_paths = sorted(root.glob('*.txt'))
 
     with ThreadPoolExecutor(8) as executor:
         list(tqdm(executor.map(_rm_duplicate_lines_in_txts,txt_paths),
