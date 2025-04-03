@@ -65,8 +65,7 @@ def count_parameters(onnx_path):
 
 
 def main():
-    # pt2onnx(r'Z:\8TSSD\ganhao\projects\ConvNeXt-V2\weights\convnextv2_atto.pt')
-    print(count_parameters(r'F:\GH_Novaic\wd_yolov8n\model\yolov8x-worldv2.onnx'))
+    print(count_parameters(r'F:\GH_Novaic\model\yolov8x-worldv2.onnx'))
 
 
 if __name__ == '__main__':

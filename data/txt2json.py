@@ -16,7 +16,7 @@ if __name__ == '__main__':
 from data.dataset import get_img_txt_xml
 
 
-def get_coco_json_format():
+def get_coco_json_format(json_path):
     """
     COCO json format:
     json_data = {
@@ -51,7 +51,7 @@ def get_coco_json_format():
     }
 
     """
-    json_path = r'W:\ganhao\Public\COCO\annotations\instances_val2017.json'
+    # json_path = r'W:\ganhao\Public\COCO\annotations\instances_val2017.json'
     with open(json_path, 'r', encoding='utf-8') as f:
         json_data = json.load(f)
     assert json_data
@@ -176,8 +176,8 @@ def json2txts(json_path):
             f.write(f"{anns.cats[i]['name']}\n")
 
 
-def generate_json_from_ov_dino_labels():
-    root = Path('/home/ganhao/data/ppvpd/open_vocabulary/20240817')
+def generate_json_from_ov_dino_labels(root):
+    # root = Path('/home/ganhao/data/ppvpd/open_vocabulary/20240817')
     txt_paths = sorted(root.glob('labels/*.txt'))
     img_paths = [get_img_txt_xml(t)[0] for t in txt_paths]
     json_path = root / 'ppvpd_20240817_open_vocabulary_annotations_by_spacy.json'
@@ -186,8 +186,8 @@ def generate_json_from_ov_dino_labels():
     txt2json(img_paths, txt_paths, json_path, categories)
 
 
-def make_oiv7_json():
-    root = Path('/mnt/28Server/animal/ovd/data/reolink/working/20240909_first_10000_images_for_trial_labeling')
+def make_oiv7_json(root):
+    # root = Path('/mnt/28Server')
     img_paths = sorted(root.glob('images/**/*.jpg'))  # 1743042
     txt_paths = [get_img_txt_xml(img_path)[1] for img_path in img_paths]
     json_path = root / 'annotations.json'
@@ -199,17 +199,7 @@ def make_oiv7_json():
 
 
 def main():
-    root = Path('/home/ganhao/data/cc3m')
-    img_paths = sorted(root.glob('images/*.jpg'))
-    txt_paths = sorted(root.glob('labels/*.txt'))
-    with open(root / 'category_for_ultralytics.txt', 'r', encoding='utf-8') as f:
-        categories = [line.strip().split(': ', maxsplit=1)[1] for line in f]
-    txt2json(
-        img_paths,
-        txt_paths,
-        root / 'cc3m1m_remove_duplicate_boxes.json',
-        categories
-    )
+    ...
 
 
 if __name__ == '__main__':

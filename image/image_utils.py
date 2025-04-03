@@ -210,8 +210,8 @@ def vis_mmap(mmap_path):
         cv2.imwrite(str(img_path), img)
 
 
-def verify_imgs(num_threads=8):
-    img_dir = Path(r'F:\data\AD\nz_trailcams\images')
+def verify_imgs(img_dir, num_threads=8):
+    # img_dir = Path(r'F:\data\AD\nz_trailcams\images')
     img_paths = sorted(img_dir.glob('**/*.[jp][pn][g]'))
 
     def verify_img(img_path):
@@ -385,11 +385,11 @@ def rm_useless_images(root):
             img_path.unlink(missing_ok=True)
 
 
-def ultralytics_annotator_demo():
+def ultralytics_annotator_demo(root):
     from ultralytics.utils.plotting import Annotator, colors
 
 
-    root = Path('/data/ganhao/wd/v008/reolink/user/20240613')
+    # root = Path('/data/ganhao')
     save_dir = root / 'ovd_002_epoch_50_18_categories_gl_norm_conf_0_1/images_vis_batched_nms_preds_and_annos'
     os.umask(0)
     save_dir.mkdir(parents=True, exist_ok=True)

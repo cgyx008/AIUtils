@@ -26,8 +26,8 @@ def imshow_feature_map(feature_map, save_path='', title=''):
     plt.close()
 
 
-def visualize_feature_map():
-    root = Path('/home/ganhao/data/reolink/test/20241115/ovd_000_person_man_debug_input_yuv1_no_detections9/feature_map/person_man')
+def visualize_feature_map(root):
+    # root = Path('/home/ganhao/data/reolink/test/20241115/ovd_000_person_man_debug_input_yuv1_no_detections9/feature_map/person_man')
     np_path = root / 'y3.npy'
     feature_maps = np.load(np_path)
 
@@ -45,7 +45,7 @@ def visualize_feature_map():
 
 
 def main():
-    visualize_feature_map()
+    visualize_feature_map(Path(''))
 
 
 if __name__ == '__main__':

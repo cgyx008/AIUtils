@@ -89,8 +89,8 @@ def split_train_val(root, make_copy=False):
                 shutil.copy2(itx[2], dst_xml)
 
 
-def rm_dup_imgs():
-    txt_path = Path('/home/kemove/8TSSD/ganhao/data/wd/v04/trainval.txt')
+def rm_dup_imgs(txt_path):
+    # txt_path = Path('/home/kemove/8TSSD/ganhao/data/wd/v04/trainval.txt')
     with open(txt_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
     save_txt = txt_path.with_stem(f'{txt_path.stem}_ids')
@@ -103,8 +103,8 @@ def rm_dup_imgs():
             f.write(f'{img_path} {w}_{h}_{s}\n')
 
 
-def cp_dum_imgs():
-    txt_path = Path('/home/kemove/8TSSD/ganhao/data/wd/v04/trainval_ids.txt')
+def cp_dum_imgs(txt_path):
+    # txt_path = Path('/home/kemove/8TSSD/ganhao/data/wd/v04/trainval_ids.txt')
     with open(txt_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
     id2imgs = {}
@@ -146,12 +146,12 @@ def cp_dum_imgs():
             shutil.copy2(p, dst)
 
 
-def del_dup_imgs():
-    root = Path('/home/kemove/8TSSD/ganhao/data/wd/v04/rm_dup_imgs.txt')
+def del_dup_imgs(root, txt):
+    # root = Path('/home/kemove/8TSSD/ganhao/data/wd/v04/rm_dup_imgs.txt')
     with open(root, 'r', encoding='utf-8') as f:
         dup = set(f.readlines())
 
-    txt = Path('/home/kemove/8TSSD/ganhao/data/wd/v04/val.txt')
+    # txt = Path('/home/kemove/8TSSD/ganhao/data/wd/v04/val.txt')
     with open(txt, 'r', encoding='utf-8') as f:
         lines = f.readlines()
     lines = [line for line in lines if line not in dup]
@@ -159,11 +159,11 @@ def del_dup_imgs():
         f.writelines(lines)
 
 
-def split_tasks():
+def split_tasks(root):
     """
     Split and assign clean tasks.
     """
-    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
+    # root = Path(r'U:\Animal')
     img_paths = sorted(root.glob('**/images/*.jpg'))
 
     num_half = len(img_paths) // 2
@@ -191,9 +191,9 @@ def split_tasks():
         shutil.copytree(d, remain_dir / Path(d).name)
 
 
-def update_labels_from_a_dir():
-    src_dir = Path(r'Z:\8TSSD\ganhao\data\fepvd\v006')
-    dst_dir = Path(r'T:\Private\Reolink\test_feedback')
+def update_labels_from_a_dir(src_dir, dst_dir):
+    # src_dir = Path(r'Z:\8TSSD\ganhao\data\fepvd\v006')
+    # dst_dir = Path(r'T:\Private')
 
     src_paths = sorted(src_dir.glob('**/labels_xml/*.xml'))
     src_stem2path = {p.stem: p for p in src_paths}
@@ -273,9 +273,9 @@ def merge_txts(root):
             f.writelines(lines)
 
 
-def rm_old_dirs():
+def rm_old_dirs(root):
     """Remove old directories like 'labels' and 'images_vis_labels'"""
-    root = Path(r'Z:\8TSSD\ganhao\data\fepvd\v007\reolink\test\20240507')
+    # root = Path(r'Z:\8TSSD\ganhao\data\fepvd\v007')
     rm_dirs = sorted(list(root.glob('*/frames'))
                      + list(root.glob('*/predict')))
     for rm_dir in tqdm(rm_dirs):
@@ -306,10 +306,10 @@ def update_labels(src, dst):
         cp_labels(src_dir, dst_dir)
 
 
-def jpg2npy():
+def jpg2npy(root):
     # oiv7: 1.4TB
     # o365: 500GB
-    root = Path('/home/ganhao/data/Objects365_v1/2019-08-02')
+    # root = Path('/home/ganhao/data/Objects365_v1/2019-08-02')
     img_paths = sorted(root.glob('images/train/*.jpg'))
     npy_sizes = []
     for img_path in tqdm(img_paths):
@@ -323,8 +323,8 @@ def jpg2npy():
     print(f'need storage: {sum(npy_sizes) / (1024 ** 3)}GB')
 
 
-def copy_and_save_as_640_npy():
-    root = Path('/data_raid0/ganhao/data/wd/v009')
+def copy_and_save_as_640_npy(root):
+    # root = Path('/data_raid0/ganhao/data/wd/v009')
     train_txt = root / 'train.txt'
     val_txt = root / 'val.txt'
     test_txt = root / 'test.txt'
@@ -370,13 +370,7 @@ def copy_and_save_as_640_npy():
 
 
 def main():
-    copy_and_save_as_640_npy()
-    # root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
-    # merge_txts(root)
-    # video_dirs = sorted(p for p in root.glob('*/*/*') if p.is_dir())
-    # for i, video_dir in enumerate(video_dirs):
-    #     print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')
-    #     split_train_val(video_dir)
+    copy_and_save_as_640_npy(Path(''))
 
 
 if __name__ == '__main__':

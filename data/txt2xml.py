@@ -1,4 +1,3 @@
-import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -381,8 +380,8 @@ def write_xml(img_path, xml_path, objs=None):
         f.write(pretty_xml_string)
 
 
-def remove_small_objs():
-    cwd = Path(r'T:\Working\v03\train')
+def remove_small_objs(cwd):
+    # cwd = Path(r'T:\Working\v03\train')
     xml_paths = sorted(cwd.glob('labels_xml/*.xml'))
     num_objs, num_small_objs = 0, 0
     has_small_obj_xml = set()
@@ -431,8 +430,8 @@ def create_empty_labels(root):
             write_xml(img_path, xml_path)
 
 
-def write_down_difficult_imgs():
-    root = Path(r'G:\data\wd\working\clean_train_val_v05_002')
+def write_down_difficult_imgs(root):
+    # root = Path(r'G:\data\wd\working\clean_train_val_v05_002')
     xmls = sorted(root.glob('labels_xml/*.xml'))
     difficult_xmls = [p for p in tqdm(xmls) if read_xml(p)['has_difficult']]
     with open(root / 'difficult_xmls.txt', 'w', encoding='utf-8') as f:
@@ -546,25 +545,6 @@ def sort_objs_by_area_in_xml_dir(xml_dir):
 
 def main():
     append_0_in_labels_iqa_dir('/data_raid0/ganhao/data/wd/20250226')
-    # root = Path(r'U:\ovd\data\reolink\working\20241122_ppvpd_3w')
-    # category_txt = root / 'categories_from_ovd_by_spacy_trf_normalized.txt'
-    # with open(category_txt, 'r', encoding='utf-8') as f:
-    #     categories = [line.strip() for line in f.readlines()]
-    # print(f'{len(categories) = }')
-    # print(f'{categories[0] = }')
-    # print(f'{categories[1] = }')
-    # print(f'{categories[-1] = }')
-    # txt2xml(root, categories)
-
-    # sort_objs_by_area_in_xml_dir('/home/ganhao/data/ovd/reolink/labels_xml')
-    # root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
-    # video_dirs = sorted(p for p in root.glob('*/*/*') if p.is_dir())
-    # # video_dirs = [root]
-    # for i, video_dir in enumerate(video_dirs):
-    #     print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')
-    #     # create_empty_labels(video_dir)
-    #     # xmls2txts(video_dir, ('animal', 'person', 'vehicle'))
-    #     append_0_in_labels_iqa_dir(video_dir)
 
 
 if __name__ == '__main__':

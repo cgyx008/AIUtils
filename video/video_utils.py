@@ -122,8 +122,8 @@ def extract_video(video_path, steps=0, seconds=1, max_workers=8, ext='jpg',
         executor.shutdown()
 
 
-def rewrite_video():
-    video_path = Path(r'H:\data\test\20250118\910777916293978.mp4')
+def rewrite_video(video_path):
+    # video_path = Path(r'H:\data\test\20250118\910777916293978.mp4')
     cap, width, height, num_frames, fps, fourcc = get_cap_and_attr(video_path)
 
     save_path = video_path.parent / f'{video_path.stem}_rewrite.mp4'
@@ -138,8 +138,8 @@ def rewrite_video():
     vw.release()
 
 
-def extract_videos():
-    r = Path(r'H:\data\reolink\user\20241210')
+def extract_videos(r):
+    # r = Path(r'H:\data\reolink\user\20241210')
     vs = sorted(r.glob('*.[amw][pokvm][4iv]'))
     # vs = sorted(r.glob('**/*.mp4'))
     # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
@@ -165,10 +165,10 @@ def format_video_stem(video_path, data_prefix='', use_time_prefix=True):
     return new_stem
 
 
-def rename_videos():
+def rename_videos(video_dir):
     data_prefix = ''
     use_time_prefix = False
-    video_dir = Path(r'H:\data\wd\v009\20250226')
+    # video_dir = Path(r'H:\data\wd\v009\20250226')
     video_paths = sorted(video_dir.glob('**/*.[amw][mopv][4iv]'))
     path_map = {}
     for p in tqdm(video_paths):
@@ -184,9 +184,9 @@ def rename_videos():
         p.rename(new_path)
 
 
-def copy_videos():
-    roots = [Path(r'V:\AlgoTestVideos')]
-    dst_dir = Path(r'U:\Animal\Private\reolink\user_feedback')
+def copy_videos(src_dir, dst_dir):
+    roots = [Path(src_dir)]
+    # dst_dir = Path(r'U:\Animal\Private\reolink\user_feedback')
 
     video_paths = []
     for root in roots:
@@ -234,8 +234,8 @@ def gen_video_id(video_path):
     return f'{width}_{height}_{num_frames}_{fps}_{size}_{frame_sum}_{frame_var}'
 
 
-def get_video_ids():
-    video_root = Path('/mnt/28Server/common/AlgoTestVideos/OfficialWebsite')
+def get_video_ids(video_root):
+    # video_root = Path('/mnt/28Server/common/AlgoTestVideos/OfficialWebsite')
     video_paths = sorted(video_root.glob('*.[amwAMW][mopvMOPV][4ivIV]'))
 
     ts = time.strftime("%Y%m%d_%H%M%S")
@@ -327,7 +327,7 @@ def loop_video_dirs(root, func, *args, **kwargs):
 
 
 def main():
-    extract_videos()
+    extract_videos(Path(''))
 
 
 if __name__ == '__main__':

@@ -152,9 +152,7 @@ def create_parent_dirs(paths):
 
 
 def main():
-    cp('/data_raid0/ganhao/data/wd/v009',
-       '/mnt/28Server/animal/Animal/Train/Detection/v009',
-       )
+    cp('src_dir', 'dst_dir')
 
 
 if __name__ == '__main__':

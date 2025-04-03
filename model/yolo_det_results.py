@@ -190,13 +190,13 @@ def save_fp_and_fn(txt, pred_dir, save_dir, num_workers=8):
                   total=len(lines)))
 
 
-def cp_fp_fn_labels():
-    save_dir = Path(r'H:\data\wd\v009\v008_trainval_fp_fn')
+def cp_fp_fn_labels(save_dir, txt):
+    # save_dir = Path(r'H:\data\wd\v009\v008_trainval_fp_fn')
     fp = sorted(save_dir.glob('fp/*.[jp][pn]g'))
     fn = sorted(save_dir.glob('fn/*.[jp][pn]g'))
     stems = {p.stem for p in (fp + fn)}
 
-    txt = r'Z:\8TSSD\ganhao\data\wd\v008\trainval.txt'
+    # txt = r'Z:\8TSSD\ganhao\data\wd\v008\trainval.txt'
     with open(txt, 'r', encoding='utf-8') as f:
         lines = f.readlines()
 
@@ -230,8 +230,8 @@ def _rm_duplicate_lines_in_txts(txt_path):
         f.writelines(write_lines)
 
 
-def rm_duplicate_lines_in_txts():
-    root = Path(r'/home/ganhao/data/ppvpd/labels_multilabel')
+def rm_duplicate_lines_in_txts(root):
+    # root = Path(r'/home/ganhao/data/ppvpd/labels_multilabel')
     txt_paths = sorted(root.glob('*.txt'))
 
     with ThreadPoolExecutor(8) as executor:
@@ -248,11 +248,11 @@ def mv_predicted_imgs_in_a_dir(root):
         src.rename(dst)
 
 
-def mv_pred_label_dir():
+def mv_pred_label_dir(root):
     """
     Move predicted label directory to the same level as images directory
     """
-    root = Path(r'G:\data\fepvd\v008\reolink\test\20240511')
+    # root = Path(r'G:\data\fepvd\v008\reolink\test\20240511')
     label_dirs = sorted(root.glob('**/predict/**/labels_xml'))
     for label_dir in tqdm(label_dirs):
         shutil.move(label_dir, label_dir.parents[2])
@@ -267,9 +267,9 @@ def cp_pred_into_video_dir(video_dir: [str, Path], exp: str,):
     cp(video_dir / 'predict' / exp / 'labels', video_dir / 'labels', '*.txt')
 
 
-def cp_pred_into_video_dirs():
-    exp = 'wd_v008_004_epochs_300'
-    root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
+def cp_pred_into_video_dirs(root, exp):
+    # exp = 'wd_v008_004_epochs_300'
+    # root = Path(r'U:\Animal\Private\reolink\user_feedback\20240613')
     video_paths = sorted(root.glob('**/*.[am][opv][4iv]'))
     video_dirs = [p.parent / p.stem for p in video_paths]
 
@@ -278,25 +278,15 @@ def cp_pred_into_video_dirs():
         cp_pred_into_video_dir(video_dir, exp)
 
 
-def rm_pred_dirs():
-    root = Path(r'G:\data\fepvd\v008\youtube')
+def rm_pred_dirs(root):
+    # root = Path(r'G:\data\fepvd\v008\youtube')
     pred_dirs = sorted(root.glob('*/images_vis_labels'))
     for pred_dir in tqdm(pred_dirs):
         shutil.rmtree(pred_dir)
 
 
 def main():
-    # root = Path('/home/kemove/8TSSD/ganhao/data/wd/v008/labels_iqa/reolink/user')
-    # video_dirs = sorted(p for p in root.glob('202[23]/*') if p.is_dir())
-    # for i, video_dir in enumerate(video_dirs):
-    #     print(f'[{i + 1} / {len(video_dirs)}] {video_dir}')
-    #     mv_predicted_imgs_in_a_dir(video_dir)
-    # save_fp_and_fn(
-    #     r'Z:\8TSSD\ganhao\data\wd\v008\trainval.txt',
-    #     r'Z:\8TSSD\ganhao\projects\ultralytics\runs\detect\wd\predict\wd_v008_015_epochs_100_v8n_mosaic_1_iqa_close_mosaic_10_trainval\labels',
-    #     r'H:\data\wd\v009\v008_trainval_fp_fn',
-    # )
-    rm_duplicate_lines_in_txts()
+    rm_duplicate_lines_in_txts(Path(''))
 
 
 if __name__ == '__main__':
