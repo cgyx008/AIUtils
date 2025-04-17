@@ -356,21 +356,29 @@ def copy_and_save_as_640_npy(root):
         list(tqdm(executor.map(_letterbox_and_save_as_640_npy, img_paths),
                   total=len(img_paths)))
 
-    # for img_path in tqdm(img_paths):
-    #     img = cv2.imread(str(img_path))
-    #     h, w = img.shape[:2]
-    #     rw, rh = 640 / w, 352 / h
-    #     r = min(rw, rh)
-    #     w = round(w * r)
-    #     h = round(h * r)
-    #     img = cv2.resize(img, (w, h))
-    #     npy_path = img_path.parent / f'{img_path.stem}.npy'
-    #     if not npy_path.exists():
-    #         np.save(npy_path, img)
+
+def save_img_as_longside_640_npy(root):
+    root = Path(root)
+    img_paths = sorted(root.glob('**/*.jpg'))
+    for img_path in tqdm(img_paths):
+        npy_path = img_path.parent / f'{img_path.stem}.npy'
+        if npy_path.exists():
+            continue
+
+        img = cv2.imread(str(img_path))
+
+        h, w = img.shape[:2]
+        r = 640 / max(h, w)
+        w = round(w * r)
+        h = round(h * r)
+
+        img = cv2.resize(img, (w, h))
+
+        np.save(npy_path, img)
 
 
 def main():
-    copy_and_save_as_640_npy(Path(''))
+    save_img_as_longside_640_npy('/home/ganhao/data/ovd/gqa/images')
 
 
 if __name__ == '__main__':
