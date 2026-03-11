@@ -1,3 +1,5 @@
+import json
+import os
 import random
 import shutil
 from concurrent.futures import ThreadPoolExecutor
@@ -65,6 +67,7 @@ def split_train_val(root, make_copy=False):
     if make_copy:
         train_dir = root / 'train'
         val_dir = root / 'val'
+        os.umask(0)
         train_dir.mkdir(parents=True, exist_ok=True)
         val_dir.mkdir(parents=True, exist_ok=True)
 
@@ -357,15 +360,18 @@ def copy_and_save_as_640_npy(root):
                   total=len(img_paths)))
 
 
-def save_img_as_longside_640_npy(root):
-    root = Path(root)
-    img_paths = sorted(root.glob('**/*.jpg'))
+def save_img_as_longside_640_npy_by_img_path(img_paths, skip_exists=True):
     for img_path in tqdm(img_paths):
+        img_path = Path(img_path)
         npy_path = img_path.parent / f'{img_path.stem}.npy'
-        if npy_path.exists():
+        if skip_exists and npy_path.exists():
             continue
 
         img = cv2.imread(str(img_path))
+        if img is None:
+            print()
+            print(img_path)
+            continue
 
         h, w = img.shape[:2]
         r = 640 / max(h, w)
@@ -377,8 +383,136 @@ def save_img_as_longside_640_npy(root):
         np.save(npy_path, img)
 
 
+def save_img_as_longside_640_npy_by_root(root):
+    root = Path(root)
+    img_paths = sorted(root.glob('**/*.jpg'))
+    save_img_as_longside_640_npy_by_img_path(img_paths)
+
+
+def save_img_as_longside_640_npy_by_img_txt(img_txt, skip_exists=True):
+    """
+    Examples:
+        >>> save_img_as_longside_640_npy_by_img_txt(
+        ...     '/home/ganhao/data/ovd/web/20251111_fire_smoke/images.txt')
+    """
+    with open(img_txt, 'r', encoding='utf-8') as f:
+        img_paths = [Path(p.strip()) for p in f]
+    save_img_as_longside_640_npy_by_img_path(img_paths, skip_exists=skip_exists)
+
+
+def init_dataset_structure(root):
+    """
+    Initialize dataset structure:
+    flickr30k/
+    +-- raw/                              # kaggle use "versions" as default
+        +-- v1.0.0/
+        +-- v2.0.0/
+    +-- processed/
+        +-- v1.0.0_20251223_multi_label/  #
+        +-- v1.1.0_20251224_add_data/
+    +-- train/
+        +-- images/
+            +-- 001.jpg                   # hard link to raw/ or processed/
+        +-- labels/
+            +-- 001.txt                   # hard link to raw/ or processed/
+        +-- images.txt
+        +-- hardlinks.jsonl
+        +-- metadata.json
+    +-- val/
+    +-- classes.txt
+
+    Args:
+        root (str | Path): Dataset root.
+    Examples:
+        >>> init_dataset_structure('/data/ganhao/data/flickr30k')
+    """
+    os.umask(0)
+
+    root = Path(root)
+    dirs = [
+        root / ('versions' if (root / 'versions').exists() else 'raw'),
+        root / 'processed',
+        root / 'train/images',
+        root / 'train/labels',
+        root / 'val/images',
+        root / 'val/labels'
+    ]
+    files = [
+        root / 'train/images.txt',
+        root / 'train/hardlinks.txt',
+        root / 'train/metadata.json',
+        root / 'val/images.txt',
+        root / 'val/hardlinks.txt',
+        root / 'val/metadata.json',
+        root / 'classes.txt',
+    ]
+
+    for d in dirs:
+        d.mkdir(exist_ok=True, parents=True)
+    for p in files:
+        with open(p, 'a', encoding='utf-8') as f:
+            f.write('')
+
+
+def hardlink_to(root):
+    """
+    Examples:
+        >>> hardlink_to('/data/ganhao/data/flickr30k')
+    """
+    root = Path(root)
+    hardlink_map = [
+        (root / 'classes.txt', root / 'processed/v1.0.0_20251218_multi_label/classes.txt'),
+        (root / 'train/images.txt', root / 'processed/v1.0.0_20251218_multi_label/train.txt'),
+        (root / 'train/images', root / 'raw/v1.0.0/flickr30k-images'),
+        (root / 'train/labels', root / 'processed/v1.0.0_20251218_multi_label/labels_multilabel_add_m_veh_and_n_veh'),
+    ]
+
+    hardlinks = []
+    for dst, src in tqdm(hardlink_map):
+        if src.is_file():
+            hardlinks.append((dst, src))
+        else:
+            for src_file in src.glob('**/*'):
+                dst_file = dst / src_file.relative_to(src)
+                hardlinks.append((dst_file, src_file))
+
+    jsonl_lines = [json.dumps((dst.as_posix(), src.as_posix())) + '\n'
+                   for dst, src in tqdm(hardlinks)]
+    with open(root / 'train/hardlinks.jsonl', 'w', encoding='utf-8') as f:
+        f.writelines(jsonl_lines)
+
+    for dst, src in tqdm(hardlinks):
+        if dst.exists():
+            dst.unlink()
+        dst.hardlink_to(src)
+
+
+def split_train_val_by_txt(img_txt):
+    """
+    Examples:
+        >>> split_train_val_by_txt('/data_raid0/ganhao/data/fsl/reolink/20260127_waste_container/metadata/add_0_images.txt')
+    """
+    img_txt = Path(img_txt)
+    with open(img_txt, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    random.seed(42)
+    random.shuffle(lines)
+
+    num_val = (len(lines) // 10) * 2
+
+    stem = img_txt.stem
+    stem = stem if 'images' in stem else f'{stem}_images'
+    train_txt = img_txt.with_stem(stem.replace('images', 'train'))
+    with open(train_txt, 'w', encoding='utf-8') as f:
+        f.writelines(sorted(lines[:-num_val]))
+
+    val_txt = img_txt.with_stem(stem.replace('images', 'val'))
+    with open(val_txt, 'w', encoding='utf-8') as f:
+        f.writelines(sorted(lines[-num_val:]))
+
+
 def main():
-    save_img_as_longside_640_npy('/home/ganhao/data/ovd/gqa/images')
+    split_train_val_by_txt('/home/ganhao/data/wr/20260305_inat/predict/v1.0.0_baseline_best_images/crops/conf_gt_0.76_iqa_gt_0.43_side_pad_5/metadata/images.txt')
 
 
 if __name__ == '__main__':

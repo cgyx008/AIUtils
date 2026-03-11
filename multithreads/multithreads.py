@@ -26,7 +26,7 @@ def kill_zombie_process():
                      ganhao    1020672 F...m python
                      ganhao    1020674 F...m python
                      ganhao    1020675 F...m python'''
-    pids = re.findall('\d+', cmd_output)
+    pids = re.findall(r'\d+', cmd_output)
     print(f'{pids = }')
     print(f"kill {' '.join(pids)}")
 

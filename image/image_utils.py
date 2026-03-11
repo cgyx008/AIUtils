@@ -2,6 +2,7 @@ import json
 import os
 import re
 import shutil
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -9,6 +10,9 @@ import cv2
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
+
+sys.path.insert(0, (Path(__file__).parents[2] / 'ultralytics').absolute().as_posix())
+from ultralytics.utils.plotting import Annotator, colors
 
 if __name__ == '__main__':
     import sys
@@ -66,7 +70,7 @@ def draw_rect_and_put_text(img, box, text, color=(0, 0, 255), box_thickness=1,
     return img
 
 
-def keep_wh_resize(src, dsize):
+def keep_wh_resize(src, dsize, pad=False):
     """
     Keep w/h to resize the image
     Args:
@@ -83,14 +87,17 @@ def keep_wh_resize(src, dsize):
     dst = cv2.resize(src, (new_w, new_h))
 
     # Pad
-    pad_w, pad_h = dsize[0] - new_w, dsize[1] - new_h
-    pad_t = pad_h // 2
-    pad_b = pad_h - pad_t
-    pad_l = pad_w // 2
-    pad_r = pad_w - pad_l
-    padded_img = cv2.copyMakeBorder(dst, pad_t, pad_b, pad_l, pad_r,
-                                    cv2.BORDER_CONSTANT, value=(114, 114, 114))
-    return padded_img
+    if pad:
+        pad_w, pad_h = dsize[0] - new_w, dsize[1] - new_h
+        pad_t = pad_h // 2
+        pad_b = pad_h - pad_t
+        pad_l = pad_w // 2
+        pad_r = pad_w - pad_l
+        dst = cv2.copyMakeBorder(
+            dst, pad_t, pad_b, pad_l, pad_r,
+            cv2.BORDER_CONSTANT, value=(114, 114, 114)
+        )
+    return dst
 
 
 def cv2_imshow(img_path):
@@ -113,73 +120,94 @@ def cv2_imshow(img_path):
         ...
 
 
-def vis_an_image_and_boxes(img_path, txt_path, save_path, cls_bias=0):
+def vis_an_image_and_boxes(img_path: Path, txt_path: Path, save_path: Path,
+                           cats=None):
     # if save_path.exists():
     #     return
     assert img_path.stem == txt_path.stem
-    if not Path(txt_path).exists():
-        return
 
+    if not Path(txt_path).exists():
+        shutil.copy2(img_path, save_path)
+        return None
+
+    lines = []
     # Read the txt
     with open(txt_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-    max_num_cols = max([len(line.split()) for line in lines])
-    labels = np.full((len(lines), max_num_cols), -1, dtype=float)
-    for i, line in enumerate(lines):
-        line = list(map(eval, line.split()))
-        labels[i, :len(line)] = line
-    if labels.size == 0:
-        classes, boxes, confs = [], [], []
-    else:
-        classes, boxes = labels[:, 0].astype(int), labels[:, 1:5]
-        boxes[:, 0] -= boxes[:, 2] / 2
-        boxes[:, 1] -= boxes[:, 3] / 2
-        boxes[:, 2] += boxes[:, 0]
-        boxes[:, 3] += boxes[:, 1]
-        confs = labels[:, 5] if labels.shape[1] == 6 else [-1] * len(labels)
+
+    if not lines:
+        shutil.copy2(img_path, save_path)
+        return None
+    if len(lines) == 1 and not lines[0].strip():
+        shutil.copy2(img_path, save_path)
+        return None
+
+    cat_ids, boxes = [], []
+    for line in lines:
+        items = line.split()
+        obj_cat_ids = items[:1] + items[5:]
+        box = list(map(float, items[1:5]))
+        cat_ids.append(obj_cat_ids)
+        boxes.append(box)
+    boxes = np.array(boxes)
 
     # Read the image
     img = cv2.imread(str(img_path))
     has_chinese = False
     if img is None:
-        with Image.open(str(img_path)) as img:
-            img = img.convert('RGB')
+        try:
+            with Image.open(str(img_path)) as img:
+                img = img.convert('RGB')
+        except UnidentifiedImageError as e:
+            print(e, img_path)
+            return None
         img = np.ascontiguousarray(np.array(img)[..., ::-1])
         has_chinese = True
         # print(f'The image is None! {img_path}')
         # return
 
+    annotator = Annotator(img, line_width=1)
+
     # Draw boxes
     h, w = img.shape[:2]
-    if isinstance(boxes, np.ndarray):
+    if boxes.size:
+        boxes[:, 0] -= boxes[:, 2] / 2
+        boxes[:, 1] -= boxes[:, 3] / 2
+        boxes[:, 2] += boxes[:, 0]
+        boxes[:, 3] += boxes[:, 1]
         boxes[:, [0, 2]] *= w
         boxes[:, [1, 3]] *= h
-    for cls, box, conf in zip(classes, boxes, confs):
-        cls_id = cls + cls_bias
-        # if cls_id > 2:
-        #     continue
-        # cat = ('A', 'P', 'V')[cls_id]
-        text = f'{cls_id} {conf:.2f}' if conf >= 0 else f'{cls_id}'
-        color = [(255, 0, 0), (0, 255, 0), (0, 0, 255)][1]
-        draw_rect_and_put_text(img, box, text, color, 2)
+
+    for obj_cat_ids, box in zip(cat_ids, boxes):
+        if cats is not None:
+            text = ', '.join([cats[int(i)] for i in obj_cat_ids])
+        else:
+            text = ', '.join(obj_cat_ids)
+        color = colors(obj_cat_ids[0])[::-1]
+        # draw_rect_and_put_text(img, box, text, color, 2)
+        annotator.box_label(box, text, color)
 
     # Save the image
     if has_chinese:
-        Image.fromarray(img[..., ::-1]).save(str(save_path))
+        Image.fromarray(annotator.result()[..., ::-1]).save(str(save_path))
     else:
-        cv2.imwrite(str(save_path), img)
+        # cv2.imwrite(str(save_path), img)
+        annotator.save(str(save_path))
+    return None
 
 
-def vis_yolo_box(cwd, save_dir=None, cls_bias=0, num_threads=8):
+def vis_yolo_box(cwd, save_dir=None, num_threads=8):
     cwd = Path(cwd)
-    img_paths = sorted(cwd.glob('images/**/*.[jp][pn]g'))
+    img_paths = [p for p in cwd.glob('images/**/*')
+                 if p.suffix.lower() in {'.jpg', '.jpeg', '.png', '.jfif'}]
+    img_paths.sort()
     txt_paths = [get_img_txt_xml(p)[1] for p in tqdm(img_paths)]
     # txt_paths = [Path(str(p).replace('/labels/', '/labels_multilabel/'))
     #              for p in tqdm(txt_paths)]
 
     if save_dir is None:
         save_paths = [
-            Path(str(p).replace('images', 'images_vis_labels'))
+            Path(str(p).replace('images', 'images_vis_labels_multilabel'))
             for p in img_paths
         ]
     else:
@@ -189,12 +217,10 @@ def vis_yolo_box(cwd, save_dir=None, cls_bias=0, num_threads=8):
     # Create parent directories
     create_parent_dirs(save_paths)
 
-    cls_bias = [cls_bias] * len(img_paths)
-
     with ThreadPoolExecutor(num_threads) as executor:
         list(tqdm(
             executor.map(vis_an_image_and_boxes,
-                         img_paths, txt_paths, save_paths, cls_bias),
+                         img_paths, txt_paths, save_paths),
             total=len(img_paths)
         ))
 
@@ -386,9 +412,6 @@ def rm_useless_images(root):
 
 
 def ultralytics_annotator_demo(root):
-    from ultralytics.utils.plotting import Annotator, colors
-
-
     # root = Path('/data/ganhao')
     save_dir = root / 'ovd_002_epoch_50_18_categories_gl_norm_conf_0_1/images_vis_batched_nms_preds_and_annos'
     os.umask(0)
@@ -435,7 +458,23 @@ def ultralytics_annotator_demo(root):
 
 
 def main():
-    vis_yolo_box(r'/home/ganhao/data/ppvpd', save_dir='/home/ganhao/data/ppvpd/images_vis_labels_multilabel')
+    # root = Path('/home/ganhao/data/Objects365_v1/2019-08-02')
+    # img_path = root / 'images/train/obj365_train_000000000002.jpg'
+    # txt_path = root / 'predict/ensemble/v1.0.0_origin_and_llmdet_ensemble/labels/obj365_train_000000000002.txt'
+    # save_path = root / 'obj365_train_000000000002_vis.jpg'
+    # cat_txt = root / 'predict/ensemble/v1.0.0_origin_and_llmdet_ensemble/classes.txt'
+    # with open(cat_txt, 'r', encoding='utf-8') as f:
+    #     cats = [line.strip() for line in f]
+    # vis_an_image_and_boxes(img_path, txt_path, save_path, cats)
+    root = Path('/home/ganhao/data/ovd/ppvpd/processed/v1.1.0_cleaning')
+    img_path = root / 'images/00-55-Hrs-with-Spots-CX-410-Farm-Country-nearly-ZERO-Ambient-Light.mp4_224.jpg'
+    exp_dir = root / 'predict/ensemble/auto/v0.1.0_merge_ppvpd_dinox_llmdet_fl2_drc'
+    txt_path = exp_dir / 'labels/00-55-Hrs-with-Spots-CX-410-Farm-Country-nearly-ZERO-Ambient-Light.mp4_224.txt'
+    save_path = exp_dir / '00-55-Hrs-with-Spots-CX-410-Farm-Country-nearly-ZERO-Ambient-Light.mp4_224_vis.jpg'
+    cat_txt = exp_dir / 'classes.txt'
+    with open(cat_txt, 'r', encoding='utf-8') as f:
+        cats = [line.strip() for line in f]
+    vis_an_image_and_boxes(img_path, txt_path, save_path, cats)
 
 
 if __name__ == '__main__':

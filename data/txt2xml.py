@@ -1,4 +1,9 @@
+from __future__ import annotations
+
+import os
+import shutil
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
@@ -206,10 +211,10 @@ def read_xml(xml_path):
 
         # Get box
         # Pixel x1y1x2y2
-        pxmin = int(obj.find('bndbox').find('xmin').text)
-        pymin = int(obj.find('bndbox').find('ymin').text)
-        pxmax = int(obj.find('bndbox').find('xmax').text)
-        pymax = int(obj.find('bndbox').find('ymax').text)
+        pxmin = int(float(obj.find('bndbox').find('xmin').text))
+        pymin = int(float(obj.find('bndbox').find('ymin').text))
+        pxmax = int(float(obj.find('bndbox').find('xmax').text))
+        pymax = int(float(obj.find('bndbox').find('ymax').text))
         # Pixel xcycwh
         pxc = (pxmin + pxmax) // 2
         pyc = (pymin + pymax) // 2
@@ -251,6 +256,16 @@ def read_xml(xml_path):
     return label
 
 
+def get_xml_cats(xml_dir):
+    xml_paths = sorted(Path(xml_dir).glob('**/*.xml'))
+    cats = {c
+            for xml_path in tqdm(xml_paths)
+            for obj in read_xml(xml_path)['objects']
+            for c in obj['name'].split('/')}
+    cats = tuple(sorted(cats))
+    return cats
+
+
 def xml2txt(xml_path, txt_path=None, classes=('animal', 'person', 'vehicle')):
     # Initialize `txt_path` if not specified
     if txt_path is None:
@@ -263,41 +278,63 @@ def xml2txt(xml_path, txt_path=None, classes=('animal', 'person', 'vehicle')):
     if not label['has_difficult']:
         for obj in label['objects']:
             # Get class_id
-            name = obj['name']
-            class_id = classes.get(name, -1)
-            if class_id == -1:
-                print(f'Error class name "{name}" in {xml_path}, skip it.')
-                continue
+            cat_groups = obj['name'].split('/')
+            cat_ids = [classes.get(cat, -1) for cat in cat_groups]
+            # class_id = classes.get(cat_groups, -1)
+            # if class_id == -1:
+            #     print(f'Error class name "{cat_groups}" in {xml_path}, skip it.')
+            #     continue
 
-            nxc, nyc, nw, nh = obj['nxywh']
-            txt_lines.append(f'{class_id} {nxc} {nyc} {nw} {nh}\n')
+            # nxc, nyc, nw, nh = obj['nxywh']
+            # txt_lines.append(f'{class_id} {nxc} {nyc} {nw} {nh}\n')
+            txt_lines.append(
+                ' '.join(map(str, cat_ids[:1] + obj['nxywh'] + cat_ids[1:]))
+                + '\n'
+            )
 
     # Write in txt
     with open(txt_path, 'w', encoding='utf-8') as f:
         f.writelines(txt_lines)
 
 
-def xmls2txts(root, classes=('animal', 'person', 'vehicle')):
+def xmls2txts(root, xml_dir=None, classes: tuple | None = ('animal', 'person', 'vehicle')):
+    os.umask(0)
+
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+
     # xml2txt
     root = Path(root)
 
     # xml
-    xml_dir = root / 'labels_xml'
+    if xml_dir is None:
+        xml_dir = root / f'labels_xml_{ts}'
+    else:
+        xml_dir = Path(xml_dir)
+        if not xml_dir.exists():
+            xml_dir = root / xml_dir
     xml_paths = sorted(xml_dir.glob('**/*.xml'))
+    if classes is None:
+        classes = get_xml_cats(xml_dir)
+        with open(xml_dir.parent / f'classes_{ts}.txt', 'w', encoding='utf-8') as f:
+            f.write('\n'.join(classes) + '\n')
 
     # txt
-    txt_dir = root / 'labels'
+    txt_dir = xml_dir.parent / f'labels'
     txt_dir.mkdir(exist_ok=True)
     txt_paths = [(txt_dir / xml_path.relative_to(xml_dir)).with_suffix('.txt')
                  for xml_path in tqdm(xml_paths)]
     create_parent_dirs(txt_paths)
 
     # classes
-    classes = [classes] * len(xml_paths)
-
-    with ThreadPoolExecutor(8) as executor:
-        list(tqdm(executor.map(xml2txt, xml_paths, txt_paths, classes),
-                  total=len(xml_paths)))
+    # classes = [classes] * len(xml_paths)
+    #
+    # with ThreadPoolExecutor(8) as executor:
+    #     list(tqdm(executor.map(xml2txt, xml_paths, txt_paths, classes),
+    #               total=len(xml_paths)))
+    for i in tqdm(range(len(xml_paths))):
+        xml_path = xml_paths[i]
+        txt_path = txt_paths[i]
+        xml2txt(xml_path, txt_path, classes)
 
 
 def write_xml(img_path, xml_path, objs=None):
@@ -543,8 +580,135 @@ def sort_objs_by_area_in_xml_dir(xml_dir):
         sort_objs_by_area_in_xml_path(xml_path)
 
 
+def crowdsource_txts_to_xmls():
+    os.umask(0)
+
+    root = Path('/data/xiaojunyang/ovd')
+    xml_dir = root / 'label_xml'
+    xml_dir.mkdir(exist_ok=True)
+
+    with open(root / 'label_name.txt', 'r', encoding='utf-8') as f:
+        cats = [line.strip() for line in f]
+
+    txt_paths = sorted(root.glob('label/*.txt'))
+    for txt_path in tqdm(txt_paths):
+        if txt_path.stem == 'classes':
+            continue
+        # Get img and xml path
+        img_path = txt_path.as_posix().replace('label', 'image').replace('.txt', '.jpg')
+        img_path = Path(img_path)
+        xml_path = txt_path.as_posix().replace('label', 'label_xml').replace('.txt', '.xml')
+        xml_path = Path(xml_path)
+        if xml_path.exists():
+            continue
+
+        if not img_path.exists():
+            img_path = img_path.with_suffix('.png')
+        if not img_path.exists():
+            img_path = img_path.with_suffix('.jpeg')
+        if not img_path.exists():
+            continue
+
+        # Read txt
+        with open(txt_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        if not lines:
+            continue
+
+        boxes, cat_ids = [], []
+        for line in lines:
+            items = line.split()
+            boxes.append(list(map(float, items[1:5])))
+            cat_ids.append(list(map(int, items[:1] + items[5:])))
+        boxes = np.array(boxes)
+
+        # (xc, yc, w, h) norm -> (xmin, ymin, xmax, ymax) norm
+        boxes[:, 0] -= boxes[:, 2] / 2
+        boxes[:, 1] -= boxes[:, 3] / 2
+        boxes[:, 2] += boxes[:, 0]
+        boxes[:, 3] += boxes[:, 1]
+
+        # Read image
+        with Image.open(img_path) as img:
+            w, h = img.size
+
+        # img = cv2.imread(str(img_path))
+        # if img is not None:
+        #     h, w = img.shape[:2]
+        # else:
+        #     try:
+        #         with Image.open(img_path) as img:
+        #             w, h = img.size
+        #     except UnidentifiedImageError as e:
+        #         w, h = 0, 0
+        #         print(e)
+
+        # norm -> pixel
+        boxes[:, [0, 2]] *= w
+        boxes[:, [1, 3]] *= h
+        boxes = boxes.astype(int)
+
+        # Write in xml
+        xml_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(xml_path, 'w', encoding='utf-8') as f:
+            f.write(
+                start_fmt.format(img_path.name, str(img_path), w, h))
+            for cat_id_group, box in zip(cat_ids, boxes):
+                cat_group = [cats[i] for i in cat_id_group]
+                if len(cat_group) == 1:
+                    cat_group = cat_group * 3
+                elif len(cat_group) == 2:
+                    cat_group.append(cat_group[-1])
+                elif len(cat_group) >= 3:
+                    cat_group = cat_group[:3]
+                c = '/'.join(cat_group)
+                f.write(obj_fmt.format(c, *box))
+            f.write(end_fmt)
+
+
+def cp_crowdsource_imgs():
+    root = Path('/data/xiaojunyang/ovd')
+    xml_paths = sorted(root.glob('label_xml/*.xml'))
+    for xml_path in tqdm(xml_paths):
+        img_path = root / 'image' / f'{xml_path.stem}.jpg'
+        if not img_path.exists():
+            img_path = img_path.with_suffix('.jpeg')
+        if not img_path.exists():
+            img_path = img_path.with_suffix('.png')
+        shutil.copy(img_path, root / 'label_xml')
+
+
 def main():
-    append_0_in_labels_iqa_dir('/data_raid0/ganhao/data/wd/20250226')
+    # root = Path('/home/ganhao/data/ovd/ppvpd/processed/v1.1.0_cleaning')
+    # exp_dir = root / 'predict/ensemble/auto/v0.1.0_merge_ppvpd_dinox_llmdet_fl2_drc'
+    # cat_txt = exp_dir / 'classes.txt'
+    # if cat_txt.exists():
+    #     with open(cat_txt, 'r', encoding='utf-8') as f:
+    #         cats = [line.strip() for line in f]
+    # else:
+    #     cats = None
+    xmls2txts(
+        '/data_raid0/ganhao/data/fsl/reolink/20260131_badge_5',
+        xml_dir=Path('/data_raid0/ganhao/data/fsl/reolink/20260131_badge_5/predict/qwen3_vl_32b_instruct/badge_only/output_xml'),
+        classes=('badge',),
+    )
+    # cat_txt = root / 'classes_001.txt'
+    # with open(cat_txt, 'r', encoding='utf-8') as f:
+    #     cats = [line.strip() for line in f]
+    # xmls2txts(
+    #     '/home/ganhao/data/ovd/ppvpd/processed/v1.1.0_cleaning',
+    #     xml_dir='labels_xml_001_merge_ppvpd_dinox_llmdet_fl2_drc_rm_small_obj_1_1024_iou_adp_blur_10_fix_single_plural_rm_abstract',
+    #     classes=cats,
+    # )
+    # root = Path(r'\\192.168.2.8\研发-IT-TEST-Algo\OVD\data1')
+    # xml_paths = sorted(root.glob('*.xml'))
+    # num_boxes = 0
+    # for p in xml_paths:
+    #     anns = read_xml(p)
+    #     num_boxes += len(anns['objects'])
+    # assert 1
+    # crowdsource_txts_to_xmls()
+    # cp_crowdsource_imgs()
 
 
 if __name__ == '__main__':

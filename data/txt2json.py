@@ -101,7 +101,7 @@ def get_images_and_annotations(img_id_and_txt, name2img):
 
 
 def txt2json(img_paths, txt_paths, json_path,
-              categories=('animal', 'person', 'vehicle', 'package')):
+             categories=('animal', 'person', 'vehicle', 'package')):
     """Transform YOLO format txts to COCO format json.
     Args:
         img_paths list(str | Path): images paths.
@@ -110,7 +110,7 @@ def txt2json(img_paths, txt_paths, json_path,
         categories (tuple[str] | list[str]): class names.
     """
     json_data = {
-        'info': {'description': 'WDOV Dataset', 'url': '',
+        'info': {'description': 'PPVD Dataset', 'url': '',
                  'version': '1.0', 'year': datetime.now().year,
                  'contributor': 'Reolink Algorithm',
                  'date_created': datetime.now().strftime('%Y/%m/%d')},
@@ -198,8 +198,24 @@ def make_oiv7_json(root):
     txt2json(img_paths, txt_paths, json_path, categories)
 
 
+def make_ppvd_json():
+    root = Path('/home/ganhao/data/ppvpd/processed/v1.0.0/coco')
+    json_path = root / 'annotations/instances_train2017.json'
+    # with open(json_path, 'r' ,encoding='utf-8') as f:
+    #     json_data = json.load(f)
+    # assert 1
+
+    img_txt = root / 'train_20240716.txt'
+    with open(img_txt, 'r', encoding='utf-8') as f:
+        img_paths = [root.parent / f'images/{line.strip()}.jpg' for line in f]
+
+    txt_paths = [root.parent / f'labels/{p.stem}.txt' for p in img_paths]
+
+    txt2json(img_paths, txt_paths, json_path)
+
+
 def main():
-    ...
+    make_ppvd_json()
 
 
 if __name__ == '__main__':

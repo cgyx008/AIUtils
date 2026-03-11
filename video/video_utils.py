@@ -1,19 +1,25 @@
 import datetime
+import json
 import os
 import shutil
+import subprocess
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-# from functools import partial
 from pathlib import Path
 
 import cv2
+from torchcodec.decoders import VideoDecoder
+from torchvision.io import write_jpeg
 from tqdm import trange, tqdm
 
 if __name__ == '__main__':
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from file.ops import get_time_prefix, format_stem
+from file.ops import get_mtime, format_stem, calc_hash, format_filename, cp
+
+
+video_sufs = {'.avi', '.mp4', '.mov', '.mkv', '.wmv', '.webm', '.ts'}
 
 
 def decode_fourcc(cc):
@@ -51,7 +57,7 @@ def get_cap_and_attr(video_path, verbose=True):
 
 
 def extract_video(video_path, steps=0, seconds=1, max_workers=8, ext='jpg',
-                  extract_all_frames=False):
+                  extract_all_frames=False, images_dir=''):
     """
     每{steps}帧提取1帧，并保存在和视频同名的文件夹中。
     Args:
@@ -62,18 +68,24 @@ def extract_video(video_path, steps=0, seconds=1, max_workers=8, ext='jpg',
             建议先在本地提帧，再复制到网络硬盘
         ext (str): 图片后缀，默认为jpg
         extract_all_frames (bool): 是否提取每一帧到frames文件夹
+        images_dir (str | Path): 保存帧的文件夹
     """
     # 1. 读取视频和打印属性
     video_path = Path(video_path)
     cap, width, height, num_frames, fps, fourcc = get_cap_and_attr(video_path)
 
+    if width * height < 640 * 360:
+        return
+
     # 2. 新建保存帧的文件夹，与视频同目录
     frames_dir = video_path.parent / video_path.stem / 'frames'
-    images_dir = video_path.parent / video_path.stem / 'images'
+    images_dir = images_dir or video_path.parent / video_path.stem / 'images'
+    images_dir = Path(images_dir)
     os.umask(0)
-    frames_dir.mkdir(exist_ok=True, parents=True)
+    if extract_all_frames:
+        frames_dir.mkdir(exist_ok=True, parents=True)
+        print(f'帧保存在文件夹：{frames_dir}')
     images_dir.mkdir(exist_ok=True, parents=True)
-    print(f'帧保存在文件夹：{frames_dir}')
     print(f'图片保存在文件夹：{images_dir}')
 
     if not cap.isOpened() or num_frames <= 0:
@@ -92,13 +104,16 @@ def extract_video(video_path, steps=0, seconds=1, max_workers=8, ext='jpg',
     # 例如：视频有100帧，即num_frames=100，那么str(num_frames)='100'，
     #      len(str(num_frames))=3，所以需要填充3个0。
     num_0s = len(str(num_frames))
+    # save_stem = format_video_stem(video_path, '', False)
+    save_stem = images_dir.parts[-1]
+
     for i in trange(num_frames, ascii=True):
         rtn, frame = cap.read()
         if not rtn:
             break
 
         # 图片名：视频名_帧索引.ext
-        save_name = f'{video_path.stem}_{str(i).zfill(num_0s)}.{ext}'
+        save_name = f'{save_stem}_{str(i).zfill(num_0s)}.{ext}'
         if extract_all_frames:
             save_path = frames_dir / save_name
             if executor:
@@ -138,41 +153,150 @@ def rewrite_video(video_path):
     vw.release()
 
 
-def extract_videos(r):
+def extract_videos(src, dst='', video_src_root=''):
     # r = Path(r'H:\data\reolink\user\20241210')
-    vs = sorted(r.glob('*.[amw][pokvm][4iv]'))
-    # vs = sorted(r.glob('**/*.mp4'))
-    # vs = sorted(p for p in vs if not (p.parent / p.stem).exists())
+    src = Path(src)
+    suf = {'.avi', '.mp4', '.mov', '.mkv', '.wmv', '.webm', '.ts'}
+    if src.suffix == '.txt':
+        with open(src, 'r', encoding='utf-8') as f:
+            vs = [Path(line.strip()) for line in f.readlines()]
+    elif src.suffix == '.json':
+        with open(src, 'r', encoding='utf-8') as f:
+            sha256_to_paths = json.load(f)
+        vs = [paths[0] for paths in sha256_to_paths.values()]
+    else:
+        filepaths = list(src.glob('**/*.*'))
+        vs = sorted([p for p in filepaths if p.suffix.lower() in suf])
     print(f'Number of videos: {len(vs)}')
-    for i, p in enumerate(vs):
-        if i < 0:
-            continue
+
+    dst = Path(dst)
+    video_src_root = Path(video_src_root)
+
+    # extract_dir_to_path = {}
+    # with open(src.parent / 'extract_dirs.csv', 'w', encoding='utf-8') as f:
+    #     f.write(f'Video Path,Extract Directory\n')
+
+    for i, p in enumerate(tqdm(vs)):
+        # p, new_p = Path(p[0]), Path(p[1])
         print(f'{i + 1} / {len(vs)}')
-        extract_video(p, steps=0, seconds=1, max_workers=8,
-                      extract_all_frames=False)
+        # if p.stem != 'Meteorite_crash_landing_captured_on_Ring_doorbell':
+        #     continue
+        if not p.exists():
+            continue
+        # video_stem = format_video_stem(p, data_prefix='', use_time_prefix=False)
+        video_stem = p.stem
+        # video_dir = (dst / p.relative_to(video_src_root)).parent / video_stem
+        video_dir = dst / video_stem
+
+        # if video_dir.as_posix in extract_dir_to_path or video_dir.exists():
+        # if video_dir.as_posix() in extract_dir_to_path:
+        #     video_stem = (video_stem + '_' + get_mtime(p)).strip('_')
+        #     video_dir = video_dir.with_stem(video_stem)
+        #
+        #     # if video_dir.as_posix in extract_dir_to_path or video_dir.exists():
+        #     if video_dir.as_posix() in extract_dir_to_path:
+        #         with open(dst / 'duplicate_videos.txt', 'a', encoding='utf-8') as f:
+        #             f.write(f'{p}\n')
+        #         continue
+
+        # extract_dir_to_path[video_dir.as_posix()] = p.as_posix()
+        # with open(src.parent / 'extract_dirs.csv', 'a', encoding='utf-8') as f:
+        #     f.write(f'{p.as_posix()},{video_dir.as_posix()}\n')
+
+        # imgs_dir = video_dir / 'images'
+        imgs_dir = video_dir
+
+        extract_video_by_torch(p, save_dir=imgs_dir, verbose=False)
+        # extract_video(p, steps=0, seconds=1, max_workers=8,
+        #               extract_all_frames=False, images_dir=imgs_dir)
+        print()
+
 
     # fast about 30%
     # func = partial(extract_frames, steps=0, seconds=2, max_workers=0)
     # with ThreadPoolExecutor(8) as executor:
     #     list(executor.map(func, vs))
 
+def extract_videos_with_sha256_json(sha256_json, img_root):
+    os.umask(0)
 
-def format_video_stem(video_path, data_prefix='', use_time_prefix=True):
+    img_root = Path(img_root)
+
+    with open(sha256_json, 'r', encoding='utf-8') as f:
+        sha256_to_path_pairs = json.load(f)
+
+    for path_pairs in tqdm(sha256_to_path_pairs.values()):
+        video_path = Path(path_pairs[0][1])  # 0: dedup, 1: rename path
+        # img_dir = img_root / video_path.stem / 'images'
+        img_dir = img_root / video_path.stem
+        img_dir.mkdir(parents=True, exist_ok=True)
+        extract_video(video_path, steps=0, seconds=1, max_workers=8,
+                      extract_all_frames=False, images_dir=img_dir)
+
+
+
+def format_video_stem(video_path, sha256_16_postfix=True,
+                      data_prefix='', use_time_prefix=False):
     video_path = Path(video_path)
-    time_prefix = get_time_prefix(video_path) if use_time_prefix else ''
-    new_stem = format_stem(f'{data_prefix}_{time_prefix}_{video_path.stem}')
+    if sha256_16_postfix:
+        sha256 = calc_hash(video_path)
+        new_stem = format_stem(f'{data_prefix}_{video_path.stem}_{sha256[:16]}')
+    else:
+        new_stem = format_stem(f'{data_prefix}_{video_path.stem}')
+    # if use_time_prefix or not new_stem:
+    #     time_prefix = get_mtime(video_path)
+    #     new_stem = format_stem(f'{data_prefix}_{time_prefix}_{video_path.stem}')
+    # time_prefix = get_time_prefix(video_path) if use_time_prefix else ''
+    # new_stem = format_stem(f'{data_prefix}_{time_prefix}_{video_path.stem}')
     new_stem = new_stem.strip('_')
     return new_stem
 
 
-def rename_videos(video_dir):
+def make_rename_video_map(video_dir):
     data_prefix = ''
     use_time_prefix = False
     # video_dir = Path(r'H:\data\wd\v009\20250226')
-    video_paths = sorted(video_dir.glob('**/*.[amw][mopv][4iv]'))
+    suf = {'.avi', '.mp4', '.mov', '.mkv', '.wmv', '.webm'}
+    video_dir = Path(video_dir)
+    video_paths = sorted([p for p in video_dir.glob('**/*.*')
+                          if p.suffix.lower() in suf])
     path_map = {}
     for p in tqdm(video_paths):
-        new_stem = format_video_stem(p, data_prefix, use_time_prefix)
+        new_stem = format_video_stem(p, data_prefix=data_prefix,
+                                     use_time_prefix=use_time_prefix)
+
+        if new_stem in path_map:
+            print(path_map[new_stem], p)
+            raise RuntimeError(f'Duplicate names: {path_map[new_stem]} and {p}')
+        path_map[new_stem] = p
+
+    map_json = video_dir.parent / 'rename_video_map.json'
+    with open(map_json, 'w', encoding='utf-8') as f:
+        json.dump({k: v.as_posix() for k, v in path_map.items()}, f, indent=4)
+
+
+def rename_videos_with_map(map_json):
+    with open(map_json, 'r', encoding='utf-8') as f:
+        path_map = json.load(f)
+
+    for new_stem, p in tqdm(path_map.items()):
+        new_path = p.with_stem(new_stem)
+        p.rename(new_path)
+
+
+def rename_videos(video_dir):
+    """Deprecated. Use `make_rename_video_map` and `rename_videos_with_map` instead"""
+    data_prefix = ''
+    use_time_prefix = False
+    # video_dir = Path(r'H:\data\wd\v009\20250226')
+    suf = {'.avi', '.mp4', '.mov', '.mkv', '.wmv', '.webm'}
+    video_dir = Path(video_dir)
+    video_paths = sorted([p for p in video_dir.glob('**/*.*')
+                          if p.suffix.lower() in suf])
+    path_map = {}
+    for p in tqdm(video_paths):
+        new_stem = format_video_stem(p, data_prefix=data_prefix,
+                                     use_time_prefix=use_time_prefix)
 
         if new_stem in path_map:
             print(path_map[new_stem], p)
@@ -182,6 +306,15 @@ def rename_videos(video_dir):
     for new_stem, p in tqdm(path_map.items()):
         new_path = p.with_stem(new_stem)
         p.rename(new_path)
+
+
+def rename_videos_with_sha256_json(sha256_json):
+    with open(sha256_json, 'r', encoding='utf-8') as f:
+        sha256_to_path_pairs = json.load(f)
+
+    for sha256, path_pairs in tqdm(sha256_to_path_pairs.items()):
+        for old_path, new_path in path_pairs:
+            Path(old_path).rename(new_path)
 
 
 def copy_videos(src_dir, dst_dir):
@@ -326,8 +459,364 @@ def loop_video_dirs(root, func, *args, **kwargs):
         func(video_dir, *args, **kwargs)
 
 
+def collect_frames_from_same_video(img_dir):
+    img_dir = Path(img_dir)
+    img_paths = sorted(img_dir.glob('*.jpg'))
+    vid2imgs = defaultdict(list)
+    for img_path in tqdm(img_paths):
+        vid_stem = img_path.stem.rsplit('_', 1)[0]
+        vid2imgs[vid_stem].append(img_path)
+
+    os.umask(0)
+    for v in vid2imgs:
+        (img_dir / v).mkdir(exist_ok=True)
+
+    for vid, img_paths in tqdm(vid2imgs.items()):
+        for p in img_paths:
+            shutil.move(p, img_dir / vid)
+
+
+def calculate_videos_sha256(video_txt, num_threads=8):
+    video_txt = Path(video_txt)
+    with open(video_txt, 'r', encoding='utf-8') as f:
+        video_paths = [Path(line.strip()) for line in f]
+
+    with ThreadPoolExecutor(num_threads) as executor:
+        sha256s = list(tqdm(executor.map(calc_hash, video_paths),
+                            total=len(video_paths),
+                            smoothing=0))
+    assert len(video_paths) == len(sha256s)
+
+    sha256_to_paths = defaultdict(list)
+    for orig_path, sha256 in zip(tqdm(video_paths), sha256s):
+        new_path = format_filename(orig_path, sha256=sha256)
+        sha256_to_paths[sha256].append(
+            (orig_path.as_posix(), new_path.as_posix())
+        )
+    print(f'Number of original videos: {len(video_paths)}')
+    print(f'Number of dedup videos: {len(sha256_to_paths)}')
+
+    with open(video_txt.parent / 'sha256.json', 'w', encoding='utf-8') as f:
+        json.dump(sha256_to_paths, f, indent=4)
+
+
+def check_extract_dirs_exist(extract_dirs_csv):
+    with open(extract_dirs_csv, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
+    not_exists_dirs = []
+    for line in tqdm(lines[1:]):
+        video_path, extract_dir = line.strip().rsplit(',', maxsplit=1)
+        if not Path(extract_dir).exists():
+            not_exists_dirs.append(extract_dir)
+            print(f'{video_path = }')
+            print(f'{extract_dir = }')
+            print('-')
+
+    print(f'{len(not_exists_dirs) = }')
+
+
+def rename_and_extract(video_txt):
+    video_txt = Path(video_txt)
+
+    calculate_videos_sha256(video_txt)
+
+    rename_videos_with_sha256_json(video_txt.parent / 'sha256.json')
+
+    extract_videos_with_sha256_json(video_txt.parent / 'sha256.json',
+                                    video_txt.parents[1] / 'images')
+
+
+def cp_and_rename(src_txt, hash_algo='md5'):
+    """
+    dataset/
+    +-- metadata/
+        +-- src.txt       # input
+        +-- md5.jsonl  # output, {src: 'xxx.mp4', dst: 'xxx_md5[:12].mp4', 'md5': 'xxx'}
+        +-- src2dst.json  # output, {md5_0: [{src: 'xxx.mp4', dst: 'xxx_md5[:12].mp4'}],
+                                     md5_1: [{src: 'yyy.mp4', dst: 'yyy_md5[:12].mp4'}],}
+    +-- videos/
+        +-- xxx_md5[:12].mp4  # output
+
+    Args:
+        video_txt (str | Path): Video txt.
+
+    """
+    src_txt = Path(src_txt)
+    with open(src_txt, 'r', encoding='utf-8') as f:
+        src_paths = [Path(line.strip()) for line in f]
+
+    root = src_txt.parents[1]
+
+    # Use ffmpeg to calculate md5 without video metadata
+    jsonl = root / f'metadata/{hash_algo}.jsonl'
+    calculated_src = {}
+    if jsonl.exists():
+        with open(jsonl, 'r', encoding='utf-8') as f:
+            calculated_src = {json.loads(line.strip())['src'] for line in f}
+    src_paths = [p for p in src_paths if p.as_posix() not in calculated_src]
+
+    for src in tqdm(src_paths):
+        # if src.as_posix() in calculated_src:
+        #     continue
+        if not src.exists():
+            continue
+        cmd = ['ffmpeg', '-loglevel', 'error', '-i', src.as_posix(),
+               '-map', '0:v:0', '-f', 'hash', '-hash', hash_algo, '-']
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True,
+                                    check=True)
+
+            h = result.stdout.strip().split('=')[1]
+            new_stem = format_stem(f'{src.stem}_{h[:12]}')
+            dst = root / f'videos/{new_stem}{src.suffix}'
+
+            with open(jsonl, 'a', encoding='utf-8') as f:
+                f.write(
+                    json.dumps(
+                        {'src': src.as_posix(),
+                         'dst': dst.as_posix(),
+                         hash_algo: h}
+                    ) + '\n'
+                )
+
+        except subprocess.CalledProcessError as e:
+            # print(f"⚠️ Skip the file! FFMPEG runs failed!")
+            # print(f"Error file: {e.cmd[4]}")  # e.cmd[4] is usually the input file
+            # print(f"Error: {e.stderr.strip()}")
+
+            with open(root / 'metadata/md5_error.jsonl', 'a', encoding='utf-8') as f:
+                f.write(
+                    json.dumps({'src': src.as_posix(), 'error': e.stderr})
+                    + '\n'
+                )
+
+            continue
+
+    with open(jsonl, 'r', encoding='utf-8') as f:
+        json_lines = [json.loads(line.strip()) for line in f]
+    h_to_paths = {}
+    for line in json_lines:
+        h = line[hash_algo]
+        if line[hash_algo] not in h_to_paths:
+            h_to_paths[h] = [{'src': line['src'], 'dst': line['dst']}]
+        else:
+            h_to_paths[h].append({'src': line['src'], 'dst': line['dst']})
+    with open(root / 'metadata/src2dst.json', 'w', encoding='utf-8') as f:
+        json.dump(h_to_paths, f, ensure_ascii=False, indent=4)
+
+    for paths in tqdm(h_to_paths.values()):
+        src, dst = paths[0]['src'], paths[0]['dst']
+        cp(src, dst, map_txt=False, show_pbar=False)
+
+
+def calc_stream_md5_by_ffmpeg(video_path):
+    """Calculate video stream md5 by ffmpeg without video container."""
+    video_path = Path(video_path)
+
+    if not video_path.exists():
+        return {'md5': '0' * 32,
+                'err': f'File not exists: {video_path.as_posix()}'}
+
+    cmd = ['ffmpeg', '-loglevel', 'error', '-i', video_path.as_posix(),
+           '-map', '0:v:0', '-f', 'hash', '-hash', 'md5', '-']
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True,
+                                check=True)
+        h = result.stdout.strip().split('=')[1]
+        return {'md5': h, 'err': None}
+
+    except subprocess.CalledProcessError as e:
+        # print(f"⚠️ Skip the file! FFMPEG runs failed!")
+        # print(f"Error file: {e.cmd[4]}")  # e.cmd[4] is usually the input file
+        # print(f"Error: {e.stderr.strip()}")
+
+        return {'md5': '0' * 32, 'err': e.stderr}
+
+
+def extract_video_by_torch(video_path, save_dir='', step_seconds=1, verbose=True):
+    """
+    Use torchcodec to extract video frames, because opencv has no av1 decoder.
+    Args:
+        video_path (str | Path): Video path.
+        save_dir (str | Path): Save directory.
+        step_seconds (int | float): Each {step_seconds} seconds extract 1 frame.
+        verbose (bool): Whether to print metadata and show progress bar.
+    """
+    os.umask(0)
+
+    video_path = Path(video_path)
+    decoder = VideoDecoder(video_path, num_ffmpeg_threads=8)
+
+    print(video_path)
+    print(decoder.metadata)
+    # VideoStreamMetadata:
+    #   duration_seconds_from_header: 13.8
+    #   begin_stream_seconds_from_header: 0.0
+    #   bit_rate: 505790.0
+    #   codec: h264
+    #   stream_index: 0
+    #   duration_seconds: 13.8
+    #   begin_stream_seconds: 0.0
+    #   begin_stream_seconds_from_content: 0.0
+    #   end_stream_seconds_from_content: 13.8
+    #   width: 640
+    #   height: 360
+    #   num_frames_from_header: 345
+    #   num_frames_from_content: 345
+    #   average_fps_from_header: 25.0
+    #   pixel_aspect_ratio: 1
+    #   end_stream_seconds: 13.8
+    #   num_frames: 345
+    #   average_fps: 25.0
+
+    if decoder.metadata.width * decoder.metadata.height < 640 * 360:
+        return
+
+    target_fps = round(decoder.metadata.average_fps * step_seconds)
+    frame_ids = list(range(0, decoder.metadata.num_frames, target_fps))
+    frames = decoder.get_frames_at(frame_ids)
+
+    save_dir = save_dir or video_path.parent / video_path.stem
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    num_0s = len(str(frame_ids[-1]))
+
+    iters = zip(tqdm(frame_ids), frames) if verbose else zip(frame_ids, frames)
+    for i, frame in iters:
+        save_path = save_dir / f'{video_path.stem}_{str(i).zfill(num_0s)}.jpg'
+        write_jpeg(frame.data, save_path.as_posix())
+
+
+class VideoDataset:
+    """
+    VideoDataset folder structure:
+    data_root/
+    +-- raw/
+        +-- 001.mp4
+    +-- videos/
+        +-- 001_md5.mp4
+    +-- metadata/
+    +-- images/
+        +-- 001_md5/
+            +-- 001_md5_000.jpg
+    """
+    def __init__(self, root):
+        os.umask(0)
+
+        self.root = Path(root)
+        self.mkdirs()
+        self.raw_txt = self.make_raw_txt()
+        self.md5_jsonl = self.calc_md5()
+        self.video_txt = self.cp_raw_to_videos_dir()
+        self.extract_videos()
+
+    def mkdirs(self):
+        (self.root / 'metadata').mkdir(exist_ok=True)
+        (self.root / 'videos').mkdir(exist_ok=True)
+        (self.root / 'images').mkdir(exist_ok=True)
+
+    def make_raw_txt(self):
+        video_paths = [p for p in self.root.glob('raw/**/*')
+                       if p.is_file() and p.suffix in video_sufs]
+        video_paths.sort()
+        raw_txt = self.root / 'metadata/raw.txt'
+        with open(raw_txt, 'w', encoding='utf-8') as f:
+            f.writelines([f'{p.as_posix()}\n' for p in video_paths])
+        return raw_txt
+
+    def calc_md5(self):
+        with open(self.raw_txt, encoding='utf-8') as f:
+            video_paths = [Path(line.strip()) for line in f]
+
+        md5_jsonl = self.root / 'metadata/raw_md5.jsonl'
+        err_jsonl = self.root / 'metadata/raw_md5_err.jsonl'
+
+        if md5_jsonl.exists():
+            with open(md5_jsonl, encoding='utf-8') as f:
+                calc_src = {json.loads(line)['src'] for line in f}
+            video_paths = [p for p in video_paths
+                           if p.as_posix() not in calc_src]
+
+        for video_path in tqdm(video_paths, desc='Calculating md5'):
+            md5_res = calc_stream_md5_by_ffmpeg(video_path)
+            if md5_res['err'] is None:
+                with open(md5_jsonl, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({'md5': md5_res['md5'],
+                                        'src': video_path.as_posix()},
+                                       ensure_ascii=False))
+                    f.write('\n')
+            else:
+                with open(err_jsonl, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({'err': md5_res['err'],
+                                        'src': video_path.as_posix()}))
+                    f.write('\n')
+        return md5_jsonl
+
+    def cp_raw_to_videos_dir(self):
+        with open(self.md5_jsonl, encoding='utf-8') as f:
+            raw_md5s = [json.loads(line) for line in f]
+
+        md5_to_cp = defaultdict(list)
+        for d in tqdm(raw_md5s):
+            src, md5 = Path(d['src']), d['md5']
+            new_stem = format_stem(f'{src.stem}_{md5[:12]}')
+            dst = self.root / f'videos/{new_stem}{src.suffix}'
+            md5_to_cp[md5].append({'src': src.as_posix(), 'dst': dst.as_posix()})
+
+        md5_to_cp_json = self.root / 'metadata/md5_to_cp.json'
+        with open(md5_to_cp_json, 'w', encoding='utf-8') as f:
+            json.dump(md5_to_cp, f, ensure_ascii=False, indent=4)
+
+        video_txt = self.root / 'metadata/videos.txt'
+        with open(video_txt, 'w', encoding='utf-8') as f:
+            f.writelines([cp[0]['dst'] + '\n' for cp in md5_to_cp.values()])
+
+        for cp in md5_to_cp.values():
+            src, dst = Path(cp[0]['src']), Path(cp[0]['dst'])
+            dst.hardlink_to(src)
+
+        return video_txt
+
+    def extract_videos(self):
+        with open(self.video_txt, encoding='utf-8') as f:
+            video_paths = [Path(line.strip()) for line in f]
+
+        for video_path in tqdm(video_paths):
+            extract_video_by_torch(
+                video_path,
+                save_dir=self.root / f'images/{video_path.stem}',
+                verbose=False,
+            )
+
+        img_paths = sorted(self.root.glob('images/*/*.jpg'))
+        with open(self.root / 'metadata/images.txt', 'w', encoding='utf-8') as f:
+            f.writelines([f'{p.as_posix()}\n' for p in img_paths])
+
+
 def main():
-    extract_videos(Path(''))
+    # extract_videos(
+    #     '/data_raid0/ganhao/data/youtube/processed/v1.0.0/20250908/sha256.json',
+    #     dst='/data_raid0/ganhao/data/youtube/processed/v1.0.0/20250908/images',
+    #     video_src_root='/mnt/28Server/common/AlgoTestVideos/Youtube',
+    # )
+    # check_extract_dirs_exist(
+    #     '/data_raid0/ganhao/data/youtube/processed/v1.0.0/20250816/extract_dirs.csv'
+    # )
+    # make_rename_video_map('/data/ganhao/data/ovd/web/20260109_garage_door/videos')
+    # extract_video_by_torch(
+    #     r'/mnt/28Server/animal/ovd/data/youtube/20260226_package/videos/Amazon_delivery_guy_thank_you_bro_shortvideo_automobile_shots_funny_a757d4d7d081.mp4',
+    #     save_dir='/mnt/28Server/animal/ovd/data/youtube/20260226_package/debug/Amazon_delivery_guy_thank_you_bro_shortvideo_automobile_shots_funny_a757d4d7d081'
+    # )
+    # rename_and_extract('')
+    # cp_and_rename('/mnt/28Server/animal/ovd/data/youtube/20260226_package/metadata/src.txt')
+    # extract_videos(
+    #     '/mnt/28Server/animal/ovd/data/youtube/20260226_package/metadata/empty_videos.txt',
+    #     dst='/mnt/28Server/animal/ovd/data/youtube/20260226_package/empty',
+    # )
+    VideoDataset('/home/ganhao/data/wr/src/20260311_youtube_animal')
 
 
 if __name__ == '__main__':
