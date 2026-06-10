@@ -6,6 +6,9 @@ from datetime import datetime
 from pathlib import Path
 import shutil
 
+from natsort import natsorted
+from rich.console import Console
+from rich.tree import Tree
 from tqdm import tqdm
 
 
@@ -242,7 +245,7 @@ def glob_path(root, pattern='**/*', txt_path=None):
     os.umask(0)
 
     root = Path(root)
-    paths = sorted(root.glob(pattern))
+    paths = natsorted(root.glob(pattern))
 
     if txt_path is None:
         txt_path = root / 'glob_path.txt'
@@ -252,6 +255,74 @@ def glob_path(root, pattern='**/*', txt_path=None):
     with open(txt_path, 'w', encoding='utf-8') as f:
         f.writelines([f'{p}\n' for p in tqdm(paths)])
 
+
+def tree(path, prefix="", n_files=3, max_depth=2, current_depth=0):
+    if current_depth > max_depth: return
+    p = Path(path)
+    items = sorted([i for i in p.iterdir() if not i.name.startswith('.')],
+                   key=lambda x: (not x.is_dir(), x.name.lower()))
+
+    dirs = [i for i in items if i.is_dir()]
+    files = [i for i in items if i.is_file()]
+
+    # 处理文件夹
+    for i, d in enumerate(dirs):
+        print(f"{prefix}└── {d.name}/")
+        tree(d, prefix + "    ", n_files, max_depth, current_depth + 1)
+
+    # 处理文件采样
+    for f in files[:n_files]:
+        print(f"{prefix}├── {f.name}")
+
+    if len(files) > n_files:
+        print(f"{prefix}└── ... ({len(files) - n_files} more)")
+
+
+def add_to_tree(directory: Path, tree: Tree, n_files: int = 3,
+                max_depth: int = 3, current_depth: int = 0):
+    """
+    递归构建带采样的树状结构
+    :param directory: 当前遍历的路径
+    :param tree: Rich Tree 的当前分支
+    :param n_files: 每个目录下显示的文件上限
+    :param max_depth: 递归的最大深度
+    :param current_depth: 当前递归深度
+    """
+    # 达到最大深度则停止递归
+    if current_depth >= max_depth:
+        return
+
+    # 获取当前目录下所有内容并排序（文件夹在前，文件在后）
+    try:
+        items = sorted(list(directory.iterdir()),
+                       key=lambda x: (not x.is_dir(), x.name.lower()))
+    except PermissionError:
+        tree.add("[red]Permission Denied[/red]")
+        return
+
+    # 过滤掉隐藏文件 (以 . 开头的)
+    visible_items = [item for item in items if not item.name.startswith('.')]
+
+    # 统计文件夹和文件
+    dirs = [item for item in visible_items if item.is_dir()]
+    files = [item for item in visible_items if item.is_file()]
+
+    # 1. 先处理子文件夹 (递归)
+    for subdir in dirs:
+        branch = tree.add(f"[bold blue]📂 {subdir.name}[/bold blue]")
+        add_to_tree(subdir, branch, n_files, max_depth, current_depth + 1)
+
+    # 2. 再处理当前目录下的文件 (采样)
+    sample_files = files[:n_files]
+    for f in sample_files:
+        # 根据后缀给点颜色瞧瞧，比如模型文件用绿色
+        color = "green" if f.suffix in ['.jsonl', '.pth', '.onnx'] else "white"
+        tree.add(f"[{color}]{f.name}[/{color}]")
+
+    # 3. 如果文件超标，打印省略号
+    if len(files) > n_files:
+        tree.add(
+            f"[italic grey50]... and {len(files) - n_files} more files[/italic grey50]")
 
 def main():
     # cp('/home/ganhao/data/ppvpd',
@@ -276,15 +347,24 @@ def main():
     # print(calc_sha256('/data_raid0/ganhao/data/ovd/inat/cougar/img_paths.txt'))
     # print(calc_hash('/home/ganhao/data/ovd/flickr30k/images/36979.jpg', method='md5'))
     # cp(
-    #     '/home/ganhao/data/wr/inat',
-    #     '/home/ganhao/data/inat',
-    #     hard_link=True
+    #     r'W:\data_raid0\ganhao\data\fsl\reolink\20260127_waste_container\crops_add_0.00_add_202601292\without waste',
+    #     r'F:\GH_Novaic\data\FSL_CLS\jpg',
+    #     hard_link=False
     # )
     glob_path(
-        '/data_raid0/ganhao/data/wd/test/20260310_youtube_bird',
-        pattern='videos/*.mp4',
-        txt_path='/data_raid0/ganhao/data/wd/test/20260310_youtube_bird/metadata/videos.txt'
+        '/home/ganhao/data/ovd/youtube/20260226_package/20260422_filter',
+        pattern='images/**/*.jpg',
+        txt_path='/home/ganhao/data/ovd/youtube/20260226_package/20260422_filter/metadata/images.txt'
     )
+    # root_path = Path(r"\\192.168.2.8\研发-算法-animal\ovd\data\reolink\working\20251121_v0_1_11\philippines_anns\20260403")  # 或者指定你的 /data/ganhao/ 路径
+    # root_tree = Tree(f"[bold yellow]📂 {root_path.absolute()}[/bold yellow]")
+    #
+    # # 执行递归：每层只看3个文件，最深看3层
+    # add_to_tree(root_path, root_tree, n_files=3, max_depth=100)
+    #
+    # console = Console(width=1000, record=True)
+    # console.print(root_tree)
+    # console.save_text(r"\\192.168.2.8\研发-算法-animal\ovd\data\reolink\working\20251121_v0_1_11\philippines_anns\tree.txt")
 
 
 if __name__ == '__main__':

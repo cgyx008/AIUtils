@@ -46,7 +46,7 @@ def release_gpu_memory():
                    for i in range(len(pids))
                    if 'ganhao' in commands[i] and 'nvtop' not in commands[i]]
     result = subprocess.run(
-        ['kill', *zombie_pids],  # 命令参数列表（推荐避免 shell=True）
+        ['kill', '-9', *zombie_pids],  # 命令参数列表（推荐避免 shell=True）
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True

@@ -279,11 +279,14 @@ def xml2txt(xml_path, txt_path=None, classes=('animal', 'person', 'vehicle')):
         for obj in label['objects']:
             # Get class_id
             cat_groups = obj['name'].split('/')
-            cat_ids = [classes.get(cat, -1) for cat in cat_groups]
-            # class_id = classes.get(cat_groups, -1)
-            # if class_id == -1:
-            #     print(f'Error class name "{cat_groups}" in {xml_path}, skip it.')
-            #     continue
+            cat_ids = []
+            for cat in cat_groups:
+                if cat not in classes:
+                    print(f'Error class name "{cat}" in {xml_path}, skip it.')
+                    continue
+                cat_ids.append(classes[cat])
+            if not cat_ids:
+                continue
 
             # nxc, nyc, nw, nh = obj['nxywh']
             # txt_lines.append(f'{class_id} {nxc} {nyc} {nw} {nh}\n')
@@ -687,11 +690,11 @@ def main():
     #         cats = [line.strip() for line in f]
     # else:
     #     cats = None
-    xmls2txts(
-        '/data_raid0/ganhao/data/fsl/reolink/20260131_badge_5',
-        xml_dir=Path('/data_raid0/ganhao/data/fsl/reolink/20260131_badge_5/predict/qwen3_vl_32b_instruct/badge_only/output_xml'),
-        classes=('badge',),
-    )
+    # xmls2txts(
+    #     '/data_raid0/ganhao/data/fsl/reolink/20260131_badge_5',
+    #     xml_dir=Path('/data_raid0/ganhao/data/fsl/reolink/20260131_badge_5/predict/qwen3_vl_32b_instruct/badge_only/output_xml'),
+    #     classes=('badge',),
+    # )
     # cat_txt = root / 'classes_001.txt'
     # with open(cat_txt, 'r', encoding='utf-8') as f:
     #     cats = [line.strip() for line in f]
@@ -709,6 +712,27 @@ def main():
     # assert 1
     # crowdsource_txts_to_xmls()
     # cp_crowdsource_imgs()
+    # txt2xml(
+    #     r'U:\fsl\hand_gesture',
+    #     ('grabbing', 'grip', 'holy', 'point', 'call', 'three3', 'timeout',
+    #      'xsign', 'hand_heart', 'hand_heart2', 'little_finger', 'middle_finger',
+    #      'take_picture', 'dislike', 'fist', 'four', 'like', 'mute', 'ok', 'one',
+    #      'palm', 'peace', 'peace_inverted', 'rock', 'stop', 'stop_inverted',
+    #      'three', 'three2', 'two_up', 'two_up_inverted', 'three_gun',
+    #      'thumb_index', 'thumb_index2', 'no_gesture', 'fist_inverted', 'two_ok',
+    #      'heart_3', 'heart_4',)
+    # )
+    xmls2txts(
+        r'U:\fsl\hand_gesture',
+        'labels_xml',
+        ('grabbing', 'grip', 'holy', 'point', 'call', 'three3', 'timeout',
+         'xsign', 'hand_heart', 'hand_heart2', 'little_finger', 'middle_finger',
+         'take_picture', 'dislike', 'fist', 'four', 'like', 'mute', 'ok', 'one',
+         'palm', 'peace', 'peace_inverted', 'rock', 'stop', 'stop_inverted',
+         'three', 'three2', 'two_up', 'two_up_inverted', 'three_gun',
+         'thumb_index', 'thumb_index2', 'no_gesture', 'fist_inverted', 'two_ok',
+         'heart_3', 'heart_4', 'three_4', 'three_5', 'heart_5')
+    )
 
 
 if __name__ == '__main__':

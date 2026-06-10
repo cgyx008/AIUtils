@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import cv2
+from rich.console import Console
 from tqdm import tqdm
 
 if __name__ == '__main__':
@@ -67,13 +68,25 @@ def read_json(json_path):
         json_str = f.read()
     json_str = json_str.replace('}\n{', '},\n{')
     json_str = f'[{json_str}]'
-    return json.loads(json_str)
+    ai_info = json.loads(json_str)
+
+    json_path = Path(json_path)
+    repaired_json_path = json_path.parent / f'{json_path.stem}_repaired.json'
+    with open(repaired_json_path, 'w', encoding='utf-8') as f:
+        json.dump(ai_info, f, ensure_ascii=False, indent=4)
+
+    rich_txt = json_path.parent / f'{json_path.stem}_rich.txt'
+    with open(rich_txt, 'w', encoding='utf-8') as f:
+        console = Console(file=f)
+        console.print(ai_info)
+
+    return ai_info
 
 
 def parse_video(video_path, num_workers=8, vis_w=640, vis_h=352):
     """
     Examples:
-        >>> parse_video(r'H:\data/reolink\test\20251218\1\diff_peo\day\c15_fn\b26\RecM0A_20251217_161313_161812_0_531ED300000000_4D897C7.mp4')
+        >>> parse_video(r'H:/data/reolink/test/20251218/1/diff_peo/day/c15_fn/b26/RecM0A_20251217_161313_161812_0_531ED300000000_4D897C7.mp4')
     """
     video_path = Path(video_path)
 
@@ -203,7 +216,7 @@ def parse_video(video_path, num_workers=8, vis_w=640, vis_h=352):
 def parse_videos(video_dir, num_workers=8):
     """
     Examples:
-        >>> parse_videos(r'H:\data/reolink\test\20251218\1\diff_peo\day\c15_fn\c15', 8)
+        >>> parse_videos(r'H:/data/reolink/test/20251218/1/diff_peo/day/c15_fn/c15', 8)
     """
     video_paths = sorted(Path(video_dir).glob('*.mp4'))
     for i, video_path in enumerate(video_paths):
@@ -216,7 +229,7 @@ def find_max_obj(json_path, begin_frame=0, end_frame=None):
 
     Examples:
         >>> find_max_obj(
-        ...     r'H:\data/reolink\test\20251218\1\diff_peo\day\c15_fn\b26\RecM0A_20251217_161313_161812_0_531ED300000000_4D897C7.json',
+        ...     r'H:/data/reolink/test/20251218/1/diff_peo/day/c15_fn/b26/RecM0A_20251217_161313_161812_0_531ED300000000_4D897C7.json',
         ...     begin_frame=1512,
         ...     end_frame=1911,
         ... )
@@ -238,16 +251,56 @@ def find_max_obj(json_path, begin_frame=0, end_frame=None):
     print(f'{min(areas) = }')
 
 
+def extract_pd(video_path):
+    video_path = Path(video_path)
+
+    ai_infos = read_json(video_path.parent / f'{video_path.stem}.json')
+
+    cap, width, height, num_frames, fps, *_ = get_cap_and_attr(video_path)
+    # num_0s = len(str(num_frames))
+    cat = 'yolo'
+    save_dir = video_path.parent / video_path.stem / f'crops_action_{cat}'
+    save_dir.mkdir(parents=True, exist_ok=True)
+    with_dir = save_dir / 'with'
+    with_dir.mkdir(parents=True, exist_ok=True)
+    without_dir = save_dir / 'without'
+    without_dir.mkdir(parents=True, exist_ok=True)
+
+    ai_w = ai_infos[0]['model'][cat]['width']
+    ai_h = ai_infos[0]['model'][cat]['height']
+
+    for ai_info in tqdm(ai_infos):
+        ret, model_frame = cap.read()
+        if not ret:
+            continue
+
+        pts = ai_info['action'][cat]['pts']
+        for j, obj in enumerate(ai_info['action'][cat]['objs']):
+            x1 = int(obj['x'] / ai_w * width)
+            y1 = int(obj['y'] / ai_h * height)
+            x2 = int((obj['x'] + obj['w']) / ai_w * width)
+            y2 = int((obj['y'] + obj['h']) / ai_h * height)
+            crop = model_frame[y1:y2, x1:x2]
+
+            t = obj['type'].replace(':', '_')
+            if t.startswith('with_'):
+                cv2.imwrite(str(with_dir / f'{pts}_{j}_{t}.jpg'), crop)
+            else:
+                cv2.imwrite(str(without_dir / f'{pts}_{j}_{t}.jpg'), crop)
+
 
 def main():
     # parse_video(
-    #     r'H:\data/reolink\test\20251218\1\diff_peo\day\c15_fn\b26\RecM0A_20251218_091001_091500_0_531ED300000000_4D7661E.mp4')
+    #     r'H:/data/fsl/20260610_hard_hat/RLC-823S1-0-20260610094016-20260610094202.mp4')
     # find_max_obj(
-    #     r'H:\data/reolink\test\20251218\1\diff_peo\day\c15_fn\b26\RecM0A_20251218_070001_070500_0_531ED300000000_4D53693.json',
+    #     r'H:/data/reolink/test/20251218/1/diff_peo/day/c15_fn/b26/RecM0A_20251218_070001_070500_0_531ED300000000_4D53693.json',
     #     begin_frame=584,
     #     end_frame=688,
     # )
-    parse_videos(r'H:\data\reolink\test\20251218\1\diff_peo\night\c15_fn\b26', 8)
+    # parse_videos(r'H:/data/reolink/test/20251218/1/diff_peo/night/c15_fn/b26', 8)
+    extract_pd(
+        r'H:/data/fsl/20260610_hard_hat/RLC-823S1-0-20260610094016-20260610094202.mp4'
+    )
 
 
 if __name__ == '__main__':

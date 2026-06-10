@@ -620,7 +620,7 @@ def calc_stream_md5_by_ffmpeg(video_path):
                 'err': f'File not exists: {video_path.as_posix()}'}
 
     cmd = ['ffmpeg', '-loglevel', 'error', '-i', video_path.as_posix(),
-           '-map', '0:v:0', '-f', 'hash', '-hash', 'md5', '-']
+           '-map', '0:v:0', '-c', 'copy', '-f', 'hash', '-hash', 'md5', '-']
     try:
         result = subprocess.run(cmd, capture_output=True, text=True,
                                 check=True)
@@ -816,7 +816,7 @@ def main():
     #     '/mnt/28Server/animal/ovd/data/youtube/20260226_package/metadata/empty_videos.txt',
     #     dst='/mnt/28Server/animal/ovd/data/youtube/20260226_package/empty',
     # )
-    VideoDataset('/home/ganhao/data/wr/src/20260311_youtube_animal')
+    VideoDataset('/data_raid0/ganhao/data/fsl/reolink/20260528_hard_hat')
 
 
 if __name__ == '__main__':
